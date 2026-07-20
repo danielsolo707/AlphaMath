@@ -27,12 +27,14 @@ tmp/
 .mypy_cache/
 .ruff_cache/
 
-# Model weights / large downloads (not shipped)
+# Model weights / large downloads (not shipped — use download script or Kaggle input)
 models/
 checkpoints/
 *.gguf
 *.bin
 *.safetensors
+*.pt
+*.pth
 
 # Secrets
 secrets/

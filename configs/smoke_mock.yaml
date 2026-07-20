@@ -1,0 +1,32 @@
+# CPU-only pipeline smoke test (no GPU / no model download).
+# Does NOT represent competition inference.
+
+competition: ai-mathematical-olympiad-progress-prize-3
+answer_min: 0
+answer_max: 999
+
+agent:
+  max_attempts: 2
+  temperature: 0.0
+  majority_vote_k: 1
+  clamp_answer: false
+
+sandbox:
+  timeout_seconds: 5
+  allowed_modules:
+    - math
+    - fractions
+    - decimal
+    - itertools
+    - functools
+    - collections
+    - sympy
+    - numpy
+
+llm:
+  backend: mock
+  model: mock-templates
+
+paths:
+  sample_problems: data/sample_problems.json
+  results_dir: results

@@ -249,6 +249,66 @@ def re_fullmatch_int(s: str) -> bool:
     return bool(re.fullmatch(r"-?\d+", s))
 
 
+def sanitize_model_code(code: str) -> str:
+    """Strip/rewrite import lines that math models often emit.
+
+    The sandbox preloads math/sympy/numpy — raw ``import`` AST nodes are blocked.
+    This keeps DeepSeek-Math-style tool code runnable without weakening the ban
+    on os/sys/subprocess/etc.
+    """
+    import re
+
+    allowed_as = {
+        "math": "math",
+        "sympy": "sympy",
+        "numpy": "numpy",
+        "itertools": "itertools",
+        "functools": "functools",
+        "collections": "collections",
+        "fractions": "fractions",
+        "decimal": "decimal",
+    }
+    out_lines: list[str] = []
+    for line in code.splitlines():
+        raw = line
+        s = line.strip()
+        # import math / import sympy as sp
+        m = re.match(r"^import\s+([a-zA-Z0-9_]+)(?:\s+as\s+([a-zA-Z0-9_]+))?\s*$", s)
+        if m:
+            mod, alias = m.group(1), m.group(2)
+            if mod in allowed_as:
+                name = alias or mod
+                # sympy as sp is already provided; alias if needed
+                if name not in {mod, "sp", "np"}:
+                    out_lines.append(f"{name} = {mod}")
+                elif alias == "sp":
+                    out_lines.append("sp = sympy")
+                elif alias == "np":
+                    out_lines.append("np = numpy")
+                continue
+            out_lines.append(f"# blocked import: {s}")
+            continue
+        # from math import gcd
+        m2 = re.match(r"^from\s+([a-zA-Z0-9_]+)\s+import\s+(.+)$", s)
+        if m2:
+            mod, names = m2.group(1), m2.group(2)
+            if mod in allowed_as:
+                for part in names.split(","):
+                    part = part.strip()
+                    if not part or part == "*":
+                        continue
+                    if " as " in part:
+                        src, dst = [p.strip() for p in part.split(" as ", 1)]
+                        out_lines.append(f"{dst} = {mod}.{src}")
+                    else:
+                        out_lines.append(f"{part} = {mod}.{part}")
+                continue
+            out_lines.append(f"# blocked import: {s}")
+            continue
+        out_lines.append(raw)
+    return "\n".join(out_lines)
+
+
 def run_code(
     code: str,
     *,
@@ -258,9 +318,10 @@ def run_code(
     """Execute model-generated code with a wall-clock timeout."""
     import time
 
+    cleaned = sanitize_model_code(code)
     t0 = time.perf_counter()
     with ThreadPoolExecutor(max_workers=1) as pool:
-        fut = pool.submit(_execute, code, allowed_modules)
+        fut = pool.submit(_execute, cleaned, allowed_modules)
         try:
             result = fut.result(timeout=timeout_seconds)
         except FuturesTimeout:
@@ -271,4 +332,5 @@ def run_code(
                 elapsed_s=time.perf_counter() - t0,
             )
     result.elapsed_s = time.perf_counter() - t0
+    result.meta["sanitized"] = cleaned != code
     return result

@@ -9,6 +9,7 @@
     {
       "id": "demo_01",
       "gold": 2,
+      "gold_cmp": 2,
       "pred": 2,
       "correct": true,
       "success": true,
@@ -16,6 +17,9 @@
       "elapsed_s": 0.001,
       "model": "mock-templates",
       "backend": "mock",
+      "votes": [
+        2
+      ],
       "tags": [
         "modular-arithmetic",
         "powers"
@@ -25,6 +29,7 @@
     {
       "id": "demo_02",
       "gold": 1275,
+      "gold_cmp": 1275,
       "pred": 1275,
       "correct": true,
       "success": true,
@@ -32,6 +37,9 @@
       "elapsed_s": 0.0,
       "model": "mock-templates",
       "backend": "mock",
+      "votes": [
+        1275
+      ],
       "tags": [
         "series"
       ],
@@ -40,6 +48,7 @@
     {
       "id": "demo_03",
       "gold": 24,
+      "gold_cmp": 24,
       "pred": 24,
       "correct": true,
       "success": true,
@@ -47,6 +56,9 @@
       "elapsed_s": 0.0,
       "model": "mock-templates",
       "backend": "mock",
+      "votes": [
+        24
+      ],
       "tags": [
         "number-theory",
         "divisors"
@@ -56,6 +68,7 @@
     {
       "id": "demo_04",
       "gold": 807,
+      "gold_cmp": 807,
       "pred": 807,
       "correct": true,
       "success": true,
@@ -63,6 +76,9 @@
       "elapsed_s": 0.0,
       "model": "mock-templates",
       "backend": "mock",
+      "votes": [
+        807
+      ],
       "tags": [
         "modular-arithmetic"
       ],
@@ -71,6 +87,7 @@
     {
       "id": "demo_05",
       "gold": 56,
+      "gold_cmp": 56,
       "pred": 56,
       "correct": true,
       "success": true,
@@ -78,6 +95,9 @@
       "elapsed_s": 0.0,
       "model": "mock-templates",
       "backend": "mock",
+      "votes": [
+        56
+      ],
       "tags": [
         "combinatorics"
       ],
@@ -86,6 +106,7 @@
     {
       "id": "demo_06",
       "gold": 7,
+      "gold_cmp": 7,
       "pred": 7,
       "correct": true,
       "success": true,
@@ -93,6 +114,9 @@
       "elapsed_s": 0.024,
       "model": "mock-templates",
       "backend": "mock",
+      "votes": [
+        7
+      ],
       "tags": [
         "algebra",
         "quadratic"
@@ -102,6 +126,7 @@
     {
       "id": "demo_07",
       "gold": 21,
+      "gold_cmp": 21,
       "pred": 21,
       "correct": true,
       "success": true,
@@ -109,6 +134,9 @@
       "elapsed_s": 0.0,
       "model": "mock-templates",
       "backend": "mock",
+      "votes": [
+        21
+      ],
       "tags": [
         "number-theory",
         "gcd"
@@ -118,6 +146,7 @@
     {
       "id": "demo_08",
       "gold": 40,
+      "gold_cmp": 40,
       "pred": 40,
       "correct": true,
       "success": true,
@@ -125,6 +154,9 @@
       "elapsed_s": 0.0,
       "model": "mock-templates",
       "backend": "mock",
+      "votes": [
+        40
+      ],
       "tags": [
         "number-theory",
         "totient"
@@ -134,6 +166,7 @@
     {
       "id": "demo_09",
       "gold": 385,
+      "gold_cmp": 385,
       "pred": 385,
       "correct": true,
       "success": true,
@@ -141,6 +174,9 @@
       "elapsed_s": 0.0,
       "model": "mock-templates",
       "backend": "mock",
+      "votes": [
+        385
+      ],
       "tags": [
         "series"
       ],
@@ -149,6 +185,7 @@
     {
       "id": "demo_10",
       "gold": 24,
+      "gold_cmp": 24,
       "pred": 24,
       "correct": true,
       "success": true,
@@ -156,6 +193,9 @@
       "elapsed_s": 0.0,
       "model": "mock-templates",
       "backend": "mock",
+      "votes": [
+        24
+      ],
       "tags": [
         "number-theory",
         "factorials"
@@ -163,5 +203,5 @@
       "difficulty": "hard"
     }
   ],
-  "notes": "Default backend is mock (offline demo templates). This measures the System-2 pipeline, not open-ended LLM olympiad skill. Set llm.backend to openai / anthropic for real model evaluation."
+  "notes": "Competition path uses open-weight DeepSeek-Math-7B-Instruct via transformers (offline, Kaggle GPU, no external API). Use configs/smoke_mock.yaml for CPU pipeline tests without downloading weights."
 }

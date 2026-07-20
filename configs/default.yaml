@@ -1,5 +1,5 @@
-# ALPHA-MATH default configuration
-# AIMO-style integer answers in [0, 999] (AIME convention)
+# ALPHA-MATH — competition-oriented defaults
+# Open-weight math model + Python/SymPy tool loop (no external APIs).
 
 competition: ai-mathematical-olympiad-progress-prize-3
 answer_min: 0
@@ -7,12 +7,13 @@ answer_max: 999
 
 agent:
   max_attempts: 3
-  temperature: 0.2
-  timeout_seconds: 8
-  majority_vote_k: 1   # set >1 for multi-sample voting when using an LLM
+  temperature: 0.6          # mild sampling helps diversity for majority vote
+  timeout_seconds: 120
+  majority_vote_k: 1        # set 3–8 on Kaggle GPU for more robust answers
+  clamp_answer: true        # AIME-style last-three-digits when out of range
 
 sandbox:
-  timeout_seconds: 5
+  timeout_seconds: 8
   max_output_chars: 8000
   allowed_modules:
     - math
@@ -25,12 +26,21 @@ sandbox:
     - numpy
 
 llm:
-  # backend: mock | openai | openai_compatible | anthropic
-  backend: mock
-  model: gpt-4o-mini
-  base_url: null          # e.g. http://localhost:11434/v1 for Ollama
-  api_key_env: OPENAI_API_KEY
-  max_tokens: 2048
+  # Primary: DeepSeek-Math 7B Instruct (open-source math specialist)
+  # Runs fully offline on Kaggle GPU when model_path points at attached weights.
+  backend: transformers
+  model: deepseek-ai/deepseek-math-7b-instruct
+  # On Kaggle set this to the attached model directory, e.g.:
+  # model_path: /kaggle/input/deepseek-math-7b-instruct
+  model_path: null
+  local_files_only: false   # true on Kaggle (no internet)
+  load_in_4bit: true        # fits T4 16GB comfortably
+  load_in_8bit: false
+  torch_dtype: auto
+  device_map: auto
+  max_new_tokens: 1024
+  max_tokens: 1024
+  trust_remote_code: true
 
 paths:
   sample_problems: data/sample_problems.json

@@ -1,15 +1,15 @@
 """Pluggable LLM backends for code generation.
 
 Backends:
-  - mock: deterministic demo solutions for bundled sample problems (offline portfolio)
-  - openai / openai_compatible: OpenAI Chat Completions API (also Ollama, vLLM, etc.)
-  - anthropic: Claude Messages API
+  - transformers / deepseek_math / local  → open-weight math model (Kaggle / offline GPU)
+  - mock                                  → deterministic templates for CPU pipeline tests
+  - openai / openai_compatible            → optional cloud or local OpenAI-API servers
+  - anthropic                             → optional Claude API
 """
 
 from __future__ import annotations
 
 import os
-import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any
@@ -32,12 +32,10 @@ class BaseLLM(ABC):
 class MockLLM(BaseLLM):
     """Offline solver templates keyed by problem fingerprint.
 
-    Used so the full agent loop (prompt → code → sandbox → verify) is
-    demonstrable without API keys or GPU weights. Not a claim of model skill.
+    CPU-only pipeline smoke tests. Not used for Kaggle competition inference.
     """
 
     def __init__(self) -> None:
-        # Map of keyword signatures → solution code
         # NOTE: sandbox forbids import statements — use preloaded math / sp / sympy.
         self._templates: list[tuple[list[str], str]] = [
             (
@@ -102,10 +100,9 @@ class MockLLM(BaseLLM):
                 )
                 return LLMResponse(text=text, model="mock-templates", backend="mock")
 
-        # Generic fallback: ask sandbox to fail gracefully with a stub
         text = (
             "REASONING:\nNo offline template matched; emitting a failing stub so the "
-            "verifier can request a retry (use an LLM backend for open problems).\n\n"
+            "verifier can request a retry (use the DeepSeek-Math backend for open problems).\n\n"
             "CODE:\n```python\nANSWER = None\nprint('NO_TEMPLATE')\n```"
         )
         return LLMResponse(text=text, model="mock-templates", backend="mock")
@@ -149,7 +146,12 @@ class OpenAICompatibleLLM(BaseLLM):
 
 
 class AnthropicLLM(BaseLLM):
-    def __init__(self, model: str = "claude-sonnet-4-20250514", api_key: str | None = None, max_tokens: int = 2048) -> None:
+    def __init__(
+        self,
+        model: str = "claude-sonnet-4-20250514",
+        api_key: str | None = None,
+        max_tokens: int = 2048,
+    ) -> None:
         try:
             import anthropic
         except ImportError as e:  # pragma: no cover
@@ -176,16 +178,45 @@ class AnthropicLLM(BaseLLM):
 
 
 def build_llm(cfg: dict[str, Any]) -> BaseLLM:
-    llm_cfg = cfg.get("llm", {})
-    backend = (llm_cfg.get("backend") or "mock").lower()
-    model = llm_cfg.get("model") or "gpt-4o-mini"
-    max_tokens = int(llm_cfg.get("max_tokens") or 2048)
+    llm_cfg = dict(cfg.get("llm", {}) or {})
+    backend = (llm_cfg.get("backend") or "transformers").lower()
+    model = llm_cfg.get("model") or "deepseek-ai/deepseek-math-7b-instruct"
+    max_tokens = int(llm_cfg.get("max_tokens") or llm_cfg.get("max_new_tokens") or 1024)
     base_url = llm_cfg.get("base_url")
     key_env = llm_cfg.get("api_key_env") or "OPENAI_API_KEY"
     api_key = os.getenv(key_env) if key_env else None
+    allow_mock_fallback = bool(llm_cfg.get("allow_mock_fallback", True))
 
-    if backend in {"mock", "demo", "offline"}:
+    if backend in {"mock", "demo"}:
         return MockLLM()
+    if backend in {
+        "transformers",
+        "huggingface",
+        "hf",
+        "local",
+        "deepseek",
+        "deepseek_math",
+        "deepseek-math",
+    }:
+        try:
+            from src.local_model import build_transformers_llm
+
+            return build_transformers_llm(llm_cfg)
+        except Exception as e:
+            # Kaggle / competition configs must fail hard (no silent mock).
+            if llm_cfg.get("local_files_only") or not allow_mock_fallback:
+                raise
+            import warnings
+
+            warnings.warn(
+                f"DeepSeek-Math backend unavailable ({type(e).__name__}: {e}). "
+                "Falling back to mock templates for CPU smoke tests. "
+                "Download weights (scripts/download_deepseek_math.py) or set "
+                "--model-path for real math-model inference.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            return MockLLM()
     if backend in {"openai", "openai_compatible", "ollama", "vllm"}:
         return OpenAICompatibleLLM(
             model=model,
@@ -194,5 +225,9 @@ def build_llm(cfg: dict[str, Any]) -> BaseLLM:
             max_tokens=max_tokens,
         )
     if backend == "anthropic":
-        return AnthropicLLM(model=model, api_key=os.getenv("ANTHROPIC_API_KEY"), max_tokens=max_tokens)
+        return AnthropicLLM(
+            model=model,
+            api_key=os.getenv("ANTHROPIC_API_KEY"),
+            max_tokens=max_tokens,
+        )
     raise ValueError(f"Unknown llm.backend: {backend}")

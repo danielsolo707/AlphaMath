@@ -1,7 +1,8 @@
-"""ALPHA-MATH agent: generate code → execute in sandbox → verify → retry."""
+"""ALPHA-MATH agent: DeepSeek-Math plans → sandbox executes → verify → retry / vote."""
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -19,6 +20,7 @@ class Attempt:
     sandbox: SandboxResult | None
     answer: int | None
     feedback: str | None = None
+    vote_round: int = 0
 
 
 @dataclass
@@ -42,6 +44,7 @@ class AgentResult:
             "attempts": [
                 {
                     "index": a.index,
+                    "vote_round": a.vote_round,
                     "code": a.code,
                     "answer": a.answer,
                     "sandbox_ok": a.sandbox.ok if a.sandbox else False,
@@ -66,7 +69,8 @@ class MathAgent:
         allowed_modules: list[str] | None = None,
         answer_min: int = 0,
         answer_max: int = 999,
-        clamp_answer: bool = False,
+        clamp_answer: bool = True,
+        majority_vote_k: int = 1,
     ) -> None:
         self.llm = llm
         self.max_attempts = max_attempts
@@ -76,89 +80,112 @@ class MathAgent:
         self.answer_min = answer_min
         self.answer_max = answer_max
         self.clamp_answer = clamp_answer
+        self.majority_vote_k = max(1, int(majority_vote_k))
 
-    def solve(self, problem: str) -> AgentResult:
-        attempts: list[Attempt] = []
-        feedback: str | None = None
-        last_model = ""
-        last_backend = ""
+    def _normalize(self, answer: int | None) -> int | None:
+        if answer is None:
+            return None
+        if self.clamp_answer:
+            if answer < 0:
+                return None
+            # AIME / many AIMO problems: report last three digits
+            if self.answer_max == 999:
+                return int(answer) % 1000
+            return max(self.answer_min, min(self.answer_max, int(answer)))
+        return int(answer)
 
-        for i in range(1, self.max_attempts + 1):
-            messages = build_messages(problem, feedback)
-            resp: LLMResponse = self.llm.complete(
-                messages, temperature=self.temperature
+    def _one_pass(
+        self, problem: str, feedback: str | None, vote_round: int, index: int
+    ) -> tuple[Attempt, LLMResponse]:
+        messages = build_messages(problem, feedback)
+        resp: LLMResponse = self.llm.complete(messages, temperature=self.temperature)
+        code = extract_code_block(resp.text)
+        sandbox: SandboxResult | None = None
+        answer: int | None = None
+        fb: str | None = None
+
+        if not code:
+            fb = (
+                "No Python code block found. Emit CODE in a ```python fenced block "
+                "and set ANSWER = <int>."
             )
-            last_model, last_backend = resp.model, resp.backend
-            code = extract_code_block(resp.text)
-            sandbox: SandboxResult | None = None
-            answer: int | None = None
-            fb: str | None = None
-
-            if not code:
-                fb = "No Python code block found. Emit CODE in a ```python fenced block and set ANSWER."
-            else:
-                sandbox = run_code(
-                    code,
-                    timeout_seconds=self.sandbox_timeout,
-                    allowed_modules=self.allowed_modules,
-                )
-                if sandbox.ok and sandbox.answer is not None:
-                    answer = sandbox.answer
-                    if self.clamp_answer:
-                        parsed = extract_integer_answer(
-                            str(answer),
-                            self.answer_min,
-                            self.answer_max,
-                            clamp=True,
-                        )
-                        answer = parsed
-                elif sandbox.ok:
-                    # Try parse from stdout / free text
-                    answer = extract_integer_answer(
+        else:
+            sandbox = run_code(
+                code,
+                timeout_seconds=self.sandbox_timeout,
+                allowed_modules=self.allowed_modules,
+            )
+            if sandbox.ok and sandbox.answer is not None:
+                answer = self._normalize(sandbox.answer)
+            elif sandbox.ok:
+                answer = self._normalize(
+                    extract_integer_answer(
                         sandbox.stdout or resp.text,
                         self.answer_min,
                         self.answer_max,
                         clamp=self.clamp_answer,
                     )
-                    if answer is None:
-                        fb = (
-                            "Code ran but no integer ANSWER was produced. "
-                            "Set ANSWER = <int> and print(ANSWER)."
-                        )
-                else:
-                    fb = f"Execution failed: {sandbox.error}"
-
-            attempt = Attempt(
-                index=i,
-                llm_text=resp.text,
-                code=code,
-                sandbox=sandbox,
-                answer=answer,
-                feedback=fb,
-            )
-            attempts.append(attempt)
-
-            if answer is not None and (not self.clamp_answer or self.answer_min <= answer <= self.answer_max or True):
-                # Accept any integer for demo; competition mode can tighten later
-                if sandbox and sandbox.ok and answer is not None:
-                    return AgentResult(
-                        problem=problem,
-                        answer=answer,
-                        success=True,
-                        attempts=attempts,
-                        model=last_model,
-                        backend=last_backend,
+                )
+                if answer is None:
+                    fb = (
+                        "Code ran but no integer ANSWER was produced. "
+                        "Set ANSWER = <int> and print(ANSWER)."
                     )
+            else:
+                fb = f"Execution failed: {sandbox.error}"
 
-            feedback = fb or "Unknown failure; revise the solution."
+        attempt = Attempt(
+            index=index,
+            llm_text=resp.text,
+            code=code,
+            sandbox=sandbox,
+            answer=answer,
+            feedback=fb,
+            vote_round=vote_round,
+        )
+        return attempt, resp
 
-        final_answer = next((a.answer for a in reversed(attempts) if a.answer is not None), None)
+    def solve(self, problem: str) -> AgentResult:
+        attempts: list[Attempt] = []
+        votes: list[int] = []
+        last_model = ""
+        last_backend = ""
+        idx = 0
+
+        for vote_round in range(1, self.majority_vote_k + 1):
+            feedback: str | None = None
+            answer: int | None = None
+
+            for _ in range(self.max_attempts):
+                idx += 1
+                attempt, resp = self._one_pass(problem, feedback, vote_round, idx)
+                attempts.append(attempt)
+                last_model = resp.model or last_model
+                last_backend = resp.backend or last_backend
+                if attempt.answer is not None and attempt.sandbox and attempt.sandbox.ok:
+                    answer = attempt.answer
+                    break
+                feedback = attempt.feedback or "Unknown failure; revise the solution."
+
+            if answer is not None:
+                votes.append(answer)
+
+        final: int | None = None
+        success = False
+        if votes:
+            final, _count = Counter(votes).most_common(1)[0]
+            success = True
+
         return AgentResult(
             problem=problem,
-            answer=final_answer,
-            success=final_answer is not None and attempts[-1].sandbox is not None and attempts[-1].sandbox.ok,
+            answer=final,
+            success=success,
             attempts=attempts,
-            model=last_model,
-            backend=last_backend,
-            meta={"exhausted_attempts": True},
+            model=str(last_model),
+            backend=str(last_backend),
+            meta={
+                "votes": votes,
+                "majority_vote_k": self.majority_vote_k,
+                "vote_counts": dict(Counter(votes)),
+            },
         )

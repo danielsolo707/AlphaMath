@@ -16,6 +16,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--file", "-f", default=None, help="Read problem text from file")
     parser.add_argument("--config", default=None)
     parser.add_argument("--backend", default=None, help="Override llm.backend")
+    parser.add_argument("--model-path", default=None, help="Local DeepSeek-Math weights dir")
     parser.add_argument("--json", action="store_true", help="Print full JSON result")
     args = parser.parse_args(argv)
 
@@ -30,6 +31,10 @@ def main(argv: list[str] | None = None) -> int:
     cfg = load_config(args.config)
     if args.backend:
         cfg.setdefault("llm", {})["backend"] = args.backend
+    if args.model_path:
+        cfg.setdefault("llm", {})["model_path"] = args.model_path
+        cfg["llm"]["local_files_only"] = True
+        cfg["llm"]["backend"] = cfg["llm"].get("backend") or "transformers"
 
     agent = build_agent_from_config(cfg)
     result = agent.solve(text.strip())

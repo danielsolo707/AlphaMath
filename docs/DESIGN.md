@@ -25,28 +25,29 @@ Target competition framing:
 | 4 | Task-specific pruning + quantization for local VRAM | **Not implemented** |
 | 5 | Portfolio release, eval harness, documentation | **Implemented** |
 
-## What ships now (Phase 3 engine)
+## What ships now (Phase 3 engine + math model path)
 
 ```
 Problem text
     │
     ▼
-LLM / mock backend  ──►  REASONING + Python CODE
-    │
+DeepSeek-Math-7B-Instruct (Transformers, local weights)
+    │  REASONING + Python CODE
     ▼
 AST-gated sandbox (math, sympy, …)  ──►  ANSWER : int
     │
     ▼
-Verifier  ──►  success | feedback → retry (≤ max_attempts)
+Verifier  ──►  success | feedback → retry  ──►  majority vote
 ```
 
 ### Backends
 
 | `llm.backend` | Use case |
 |---------------|----------|
-| `mock` (default) | Offline portfolio demo on bundled sample problems |
-| `openai` / `openai_compatible` | GPT, Ollama, vLLM, any Chat Completions server |
-| `anthropic` | Claude |
+| `transformers` / `deepseek_math` (**default**) | Open-weight DeepSeek-Math on local/Kaggle GPU |
+| `mock` | CPU smoke test of the tool loop only |
+| `openai` / `openai_compatible` | Optional servers (not for AIMO submit) |
+| `anthropic` | Optional cloud (not for AIMO submit) |
 
 ### Honesty policy
 

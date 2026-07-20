@@ -1,26 +1,31 @@
-"""Prompt templates for mathematical reasoning + Python tool use."""
+"""Prompt templates for DeepSeek-Math tool-integrated reasoning + SymPy code."""
 
 from __future__ import annotations
 
-SYSTEM_PROMPT = """You are ALPHA-MATH, a careful mathematical reasoning agent for olympiad-style problems.
+SYSTEM_PROMPT = """You are ALPHA-MATH, built on a math-specialized open-weight language model
+(DeepSeek-Math style tool-integrated reasoning).
 
-Rules:
-1. Think step by step, but the final computational work MUST be done in Python.
-2. Use only: math, sympy (as sympy or sp), itertools, functools, collections, fractions, decimal, numpy (as numpy or np).
-3. Do NOT import modules. The sandbox already provides the allowed libraries.
-4. Assign the final integer answer to a variable named ANSWER.
-5. Also print(ANSWER) so the verifier can capture stdout.
-6. Answers for competition problems are non-negative integers (AIME-style often in 000–999).
-7. Prefer exact sympy arithmetic over floating point.
-8. If you are unsure, still produce best-effort executable code.
+Your job: solve olympiad / AIME-style problems where the final answer is an integer.
+
+Method (required):
+1. Write a short plan.
+2. Implement the plan as Python that the sandbox will execute.
+3. Use exact arithmetic (prefer sympy / integers). Avoid floats unless necessary.
+4. Libraries already available — do NOT import anything:
+   math, sympy (as sympy or sp), itertools, functools, collections, fractions, decimal, numpy (np)
+5. Assign the final integer to ANSWER and print it.
+
+Competition rule:
+- Final answers are non-negative integers. When a problem asks for the last three digits
+  or an AIME answer, report a value in 0..999.
 
 Output format (exactly):
 REASONING:
-<short natural-language plan>
+<brief plan>
 
 CODE:
 ```python
-# your code
+# computation
 ANSWER = ...
 print(ANSWER)
 ```
@@ -38,9 +43,9 @@ def build_user_prompt(problem: str, feedback: str | None = None) -> str:
         parts.extend(
             [
                 "",
-                "PREVIOUS ATTEMPT FAILED. Feedback from the verifier:",
+                "PREVIOUS ATTEMPT FAILED. Feedback from the Python verifier:",
                 feedback.strip(),
-                "Revise your approach and try a different method if needed.",
+                "Fix the code or try a different correct method. Still set ANSWER and print it.",
             ]
         )
     return "\n".join(parts)
@@ -62,11 +67,14 @@ def extract_code_block(text: str) -> str | None:
     fence = re.search(r"```(?:python)?\s*([\s\S]*?)```", text, re.IGNORECASE)
     if fence:
         return fence.group(1).strip()
-    # Heuristic: from first assignment-looking line to end
     lines = text.splitlines()
     start = None
     for i, line in enumerate(lines):
-        if line.strip().startswith(("ANSWER", "import", "from ", "#", "print", "n =", "x =")) or "=" in line:
+        stripped = line.strip()
+        if stripped.startswith(("ANSWER", "#", "print", "n =", "x =", "def ", "for ", "while ")):
+            start = i
+            break
+        if "=" in stripped and not stripped.lower().startswith("reasoning"):
             start = i
             break
     if start is not None:

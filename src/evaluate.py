@@ -27,16 +27,21 @@ def evaluate(
         pid = item.get("id", f"p{i}")
         problem = item["problem"]
         gold = item.get("answer")
+        # When agent clamps to 0..999, also clamp gold for fair compare
+        gold_cmp = gold
+        if gold is not None and agent.clamp_answer and agent.answer_max == 999 and gold >= 0:
+            gold_cmp = int(gold) % 1000
         t_item = time.perf_counter()
         result = agent.solve(problem)
         elapsed = time.perf_counter() - t_item
         pred = result.answer
-        is_correct = gold is not None and pred is not None and int(pred) == int(gold)
+        is_correct = gold_cmp is not None and pred is not None and int(pred) == int(gold_cmp)
         if is_correct:
             correct += 1
         row = {
             "id": pid,
             "gold": gold,
+            "gold_cmp": gold_cmp,
             "pred": pred,
             "correct": is_correct,
             "success": result.success,
@@ -44,13 +49,14 @@ def evaluate(
             "elapsed_s": round(elapsed, 3),
             "model": result.model,
             "backend": result.backend,
+            "votes": result.meta.get("votes"),
             "tags": item.get("tags", []),
             "difficulty": item.get("difficulty"),
         }
         rows.append(row)
         if verbose:
             mark = "OK" if is_correct else "MISS"
-            print(f"[{i:02d}/{len(problems)}] {mark}  {pid}: pred={pred} gold={gold}  ({elapsed:.2f}s)")
+            print(f"[{i:02d}/{len(problems)}] {mark}  {pid}: pred={pred} gold={gold_cmp}  ({elapsed:.2f}s)")
 
     total = len(problems)
     acc = correct / total if total else 0.0
@@ -63,9 +69,9 @@ def evaluate(
         "model": rows[0]["model"] if rows else None,
         "per_problem": rows,
         "notes": (
-            "Default backend is mock (offline demo templates). "
-            "This measures the System-2 pipeline, not open-ended LLM olympiad skill. "
-            "Set llm.backend to openai / anthropic for real model evaluation."
+            "Competition path uses open-weight DeepSeek-Math-7B-Instruct via transformers "
+            "(offline, Kaggle GPU, no external API). "
+            "Use configs/smoke_mock.yaml for CPU pipeline tests without downloading weights."
         ),
     }
     return summary
@@ -83,7 +89,8 @@ def build_agent_from_config(cfg: dict) -> MathAgent:
         allowed_modules=list(sb.get("allowed_modules") or []),
         answer_min=int(cfg.get("answer_min", 0)),
         answer_max=int(cfg.get("answer_max", 999)),
-        clamp_answer=False,
+        clamp_answer=bool(agent_cfg.get("clamp_answer", True)),
+        majority_vote_k=int(agent_cfg.get("majority_vote_k", 1)),
     )
 
 
@@ -93,13 +100,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--problems", default=None, help="Path to problems JSON")
     parser.add_argument("--limit", type=int, default=None, help="Evaluate only first N")
     parser.add_argument("--out", default=None, help="Write summary JSON here")
-    parser.add_argument("--backend", default=None, help="Override llm.backend (mock|openai|anthropic)")
+    parser.add_argument(
+        "--backend",
+        default=None,
+        help="Override llm.backend (transformers|mock|openai|anthropic)",
+    )
+    parser.add_argument("--model-path", default=None, help="Override llm.model_path (local weights)")
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)
 
     cfg = load_config(args.config)
     if args.backend:
         cfg.setdefault("llm", {})["backend"] = args.backend
+    if args.model_path:
+        cfg.setdefault("llm", {})["model_path"] = args.model_path
+        cfg["llm"]["local_files_only"] = True
 
     problems_path = args.problems or cfg["paths"]["sample_problems"]
     problems = load_problems(problems_path)
@@ -122,6 +137,5 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    # Allow `python -m src.evaluate` from repo root
     sys.path.insert(0, str(project_root()))
     raise SystemExit(main())

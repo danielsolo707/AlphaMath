@@ -1,0 +1,51 @@
+# Kaggle AIMO submission profile — zero internet, local DeepSeek-Math weights.
+#
+# Before submit:
+#   1. Add DeepSeek-Math-7B-Instruct as a Kaggle Model or Dataset
+#   2. Set model_path to the actual /kaggle/input/... folder that contains
+#      config.json + tokenizer + weights
+#   3. Turn off internet in the notebook
+
+competition: ai-mathematical-olympiad-progress-prize-3
+answer_min: 0
+answer_max: 999
+
+agent:
+  max_attempts: 3
+  temperature: 0.7
+  timeout_seconds: 180
+  majority_vote_k: 5
+  clamp_answer: true
+
+sandbox:
+  timeout_seconds: 10
+  max_output_chars: 8000
+  allowed_modules:
+    - math
+    - fractions
+    - decimal
+    - itertools
+    - functools
+    - collections
+    - sympy
+    - numpy
+
+llm:
+  backend: transformers
+  model: deepseek-ai/deepseek-math-7b-instruct
+  # UPDATE THIS to your attached Kaggle model/dataset path:
+  model_path: /kaggle/input/deepseek-math-7b-instruct
+  local_files_only: true
+  load_in_4bit: true
+  load_in_8bit: false
+  torch_dtype: float16
+  device_map: auto
+  max_new_tokens: 1024
+  trust_remote_code: true
+
+paths:
+  sample_problems: data/sample_problems.json
+  results_dir: /kaggle/working/results
+  # AIMO data paths (adjust to competition files):
+  test_csv: /kaggle/input/ai-mathematical-olympiad-progress-prize-3/test.csv
+  submission_csv: /kaggle/working/submission.csv
