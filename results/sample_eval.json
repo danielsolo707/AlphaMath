@@ -1,0 +1,167 @@
+{
+  "total": 10,
+  "correct": 10,
+  "accuracy": 1.0,
+  "elapsed_s": 0.028,
+  "backend": "mock",
+  "model": "mock-templates",
+  "per_problem": [
+    {
+      "id": "demo_01",
+      "gold": 2,
+      "pred": 2,
+      "correct": true,
+      "success": true,
+      "attempts": 1,
+      "elapsed_s": 0.001,
+      "model": "mock-templates",
+      "backend": "mock",
+      "tags": [
+        "modular-arithmetic",
+        "powers"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "demo_02",
+      "gold": 1275,
+      "pred": 1275,
+      "correct": true,
+      "success": true,
+      "attempts": 1,
+      "elapsed_s": 0.0,
+      "model": "mock-templates",
+      "backend": "mock",
+      "tags": [
+        "series"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "demo_03",
+      "gold": 24,
+      "pred": 24,
+      "correct": true,
+      "success": true,
+      "attempts": 1,
+      "elapsed_s": 0.0,
+      "model": "mock-templates",
+      "backend": "mock",
+      "tags": [
+        "number-theory",
+        "divisors"
+      ],
+      "difficulty": "easy"
+    },
+    {
+      "id": "demo_04",
+      "gold": 807,
+      "pred": 807,
+      "correct": true,
+      "success": true,
+      "attempts": 1,
+      "elapsed_s": 0.0,
+      "model": "mock-templates",
+      "backend": "mock",
+      "tags": [
+        "modular-arithmetic"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "demo_05",
+      "gold": 56,
+      "pred": 56,
+      "correct": true,
+      "success": true,
+      "attempts": 1,
+      "elapsed_s": 0.0,
+      "model": "mock-templates",
+      "backend": "mock",
+      "tags": [
+        "combinatorics"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "demo_06",
+      "gold": 7,
+      "pred": 7,
+      "correct": true,
+      "success": true,
+      "attempts": 1,
+      "elapsed_s": 0.024,
+      "model": "mock-templates",
+      "backend": "mock",
+      "tags": [
+        "algebra",
+        "quadratic"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "demo_07",
+      "gold": 21,
+      "pred": 21,
+      "correct": true,
+      "success": true,
+      "attempts": 1,
+      "elapsed_s": 0.0,
+      "model": "mock-templates",
+      "backend": "mock",
+      "tags": [
+        "number-theory",
+        "gcd"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "demo_08",
+      "gold": 40,
+      "pred": 40,
+      "correct": true,
+      "success": true,
+      "attempts": 1,
+      "elapsed_s": 0.0,
+      "model": "mock-templates",
+      "backend": "mock",
+      "tags": [
+        "number-theory",
+        "totient"
+      ],
+      "difficulty": "hard"
+    },
+    {
+      "id": "demo_09",
+      "gold": 385,
+      "pred": 385,
+      "correct": true,
+      "success": true,
+      "attempts": 1,
+      "elapsed_s": 0.0,
+      "model": "mock-templates",
+      "backend": "mock",
+      "tags": [
+        "series"
+      ],
+      "difficulty": "medium"
+    },
+    {
+      "id": "demo_10",
+      "gold": 24,
+      "pred": 24,
+      "correct": true,
+      "success": true,
+      "attempts": 1,
+      "elapsed_s": 0.0,
+      "model": "mock-templates",
+      "backend": "mock",
+      "tags": [
+        "number-theory",
+        "factorials"
+      ],
+      "difficulty": "hard"
+    }
+  ],
+  "notes": "Default backend is mock (offline demo templates). This measures the System-2 pipeline, not open-ended LLM olympiad skill. Set llm.backend to openai / anthropic for real model evaluation."
+}

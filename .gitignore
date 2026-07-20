@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Runtime / artifacts
+*.log
+.cache/
+outputs/
+tmp/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Model weights / large downloads (not shipped)
+models/
+checkpoints/
+*.gguf
+*.bin
+*.safetensors
+
+# Secrets
+secrets/
+*.pem
+ngrok*

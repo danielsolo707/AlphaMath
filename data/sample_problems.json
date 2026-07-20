@@ -1,0 +1,83 @@
+[
+  {
+    "id": "demo_01",
+    "source": "original-demo",
+    "difficulty": "easy",
+    "problem": "Compute the remainder when 2^10 is divided by 7. Report an integer in [0, 999].",
+    "answer": 2,
+    "tags": ["modular-arithmetic", "powers"]
+  },
+  {
+    "id": "demo_02",
+    "source": "original-demo",
+    "difficulty": "easy",
+    "problem": "Find the sum of the first 50 positive integers. Report an integer in [0, 999].",
+    "answer": 1275,
+    "note": "answer_max check: 1275 exceeds 999 — for portfolio demo we still store true value; agent normalizes only competition mode",
+    "tags": ["series"]
+  },
+  {
+    "id": "demo_03",
+    "source": "original-demo",
+    "difficulty": "easy",
+    "problem": "How many positive divisors does 360 have? Report an integer in [0, 999].",
+    "answer": 24,
+    "tags": ["number-theory", "divisors"]
+  },
+  {
+    "id": "demo_04",
+    "source": "original-demo",
+    "difficulty": "medium",
+    "problem": "Find the last three digits of 7^5 (i.e., 7^5 mod 1000). Report an integer in [0, 999].",
+    "answer": 807,
+    "tags": ["modular-arithmetic"]
+  },
+  {
+    "id": "demo_05",
+    "source": "original-demo",
+    "difficulty": "medium",
+    "problem": "A bag contains 5 red and 3 blue marbles. In how many ways can 3 marbles be chosen if order does not matter? Report an integer in [0, 999].",
+    "answer": 56,
+    "tags": ["combinatorics"]
+  },
+  {
+    "id": "demo_06",
+    "source": "original-demo",
+    "difficulty": "medium",
+    "problem": "Solve for the positive integer n: n^2 + n - 56 = 0 has integer root n. Report that positive integer root.",
+    "answer": 7,
+    "tags": ["algebra", "quadratic"]
+  },
+  {
+    "id": "demo_07",
+    "source": "original-demo",
+    "difficulty": "medium",
+    "problem": "What is gcd(252, 105)? Report an integer in [0, 999].",
+    "answer": 21,
+    "tags": ["number-theory", "gcd"]
+  },
+  {
+    "id": "demo_08",
+    "source": "original-demo",
+    "difficulty": "hard",
+    "problem": "Find the number of integers n with 1 <= n <= 100 that are coprime to 100 (i.e., Euler's totient phi(100)). Report an integer in [0, 999].",
+    "answer": 40,
+    "tags": ["number-theory", "totient"]
+  },
+  {
+    "id": "demo_09",
+    "source": "original-demo",
+    "difficulty": "medium",
+    "problem": "Compute sum_{k=1}^{10} k^2. Report an integer in [0, 999].",
+    "answer": 385,
+    "tags": ["series"]
+  },
+  {
+    "id": "demo_10",
+    "source": "original-demo",
+    "difficulty": "hard",
+    "problem": "How many trailing zeros are in 100! (decimal representation)? Report an integer in [0, 999].",
+    "answer": 24,
+    "tags": ["number-theory", "factorials"]
+  }
+]

@@ -1,0 +1,12 @@
+# Core agent runtime
+sympy>=1.12
+numpy>=1.24
+pydantic>=2.0
+pyyaml>=6.0
+tqdm>=4.66
+rich>=13.0
+httpx>=0.27
+
+# Optional LLM backends (install what you use)
+# openai>=1.40
+# anthropic>=0.34
