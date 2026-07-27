@@ -31,6 +31,11 @@ tmp/
 .tmp_kaggle/
 .ipynb_checkpoints/
 
+# Local interview prep (keep on disk, do not publish)
+INTERVIEW_PRESENTATION.md
+INTERVIEW_PRESENTATION_FA.md
+
+
 # Model weights / large downloads (not shipped — use download script or Kaggle input)
 models/
 checkpoints/
