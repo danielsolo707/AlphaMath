@@ -1,206 +1,570 @@
 {
+  "schema_version": "2.0",
   "total": 10,
   "correct": 10,
   "accuracy": 1.0,
-  "elapsed_s": 0.036,
+  "elapsed_s": 0.936,
   "backend": "mock",
   "model": "mock-templates",
+  "metrics": {
+    "accuracy": 1.0,
+    "solved_rate": 1.0,
+    "execution_success_rate": 1.0,
+    "default_rate": 0.0,
+    "avg_attempts": 1,
+    "avg_latency_s": 0.094,
+    "median_latency_s": 0.092,
+    "max_latency_s": 0.104,
+    "mean_vote_agreement": 1.0,
+    "sandbox_timeouts": 0
+  },
+  "breakdown": {
+    "difficulty": {
+      "easy": {
+        "total": 3,
+        "correct": 3,
+        "accuracy": 1.0
+      },
+      "medium": {
+        "total": 7,
+        "correct": 7,
+        "accuracy": 1.0
+      }
+    },
+    "tags": {
+      "algebra": {
+        "total": 1,
+        "correct": 1,
+        "accuracy": 1.0
+      },
+      "combinatorics": {
+        "total": 1,
+        "correct": 1,
+        "accuracy": 1.0
+      },
+      "divisors": {
+        "total": 1,
+        "correct": 1,
+        "accuracy": 1.0
+      },
+      "factorials": {
+        "total": 1,
+        "correct": 1,
+        "accuracy": 1.0
+      },
+      "gcd": {
+        "total": 1,
+        "correct": 1,
+        "accuracy": 1.0
+      },
+      "modular-arithmetic": {
+        "total": 2,
+        "correct": 2,
+        "accuracy": 1.0
+      },
+      "number-theory": {
+        "total": 4,
+        "correct": 4,
+        "accuracy": 1.0
+      },
+      "powers": {
+        "total": 1,
+        "correct": 1,
+        "accuracy": 1.0
+      },
+      "quadratic": {
+        "total": 1,
+        "correct": 1,
+        "accuracy": 1.0
+      },
+      "series": {
+        "total": 2,
+        "correct": 2,
+        "accuracy": 1.0
+      },
+      "totient": {
+        "total": 1,
+        "correct": 1,
+        "accuracy": 1.0
+      }
+    }
+  },
   "per_problem": [
     {
       "id": "demo_01",
+      "problem": "Compute the remainder when 2^10 is divided by 7. Report an integer in [0, 999].",
       "gold": 2,
       "gold_cmp": 2,
       "pred": 2,
       "correct": true,
       "success": true,
       "attempts": 1,
-      "elapsed_s": 0.001,
+      "elapsed_s": 0.096,
       "model": "mock-templates",
       "backend": "mock",
       "votes": [
         2
       ],
+      "vote_counts": {
+        "2": 1
+      },
+      "vote_agreement": 1.0,
+      "vote_tied": false,
+      "defaulted": false,
+      "budget_exhausted": false,
+      "execution_success": true,
+      "sandbox_failures": 0,
+      "sandbox_timeouts": 0,
+      "failure_types": [],
       "tags": [
         "modular-arithmetic",
         "powers"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "source": "original-demo",
+      "trace": [
+        {
+          "index": 1,
+          "vote_round": 1,
+          "correction_index": 0,
+          "seed": 2026,
+          "llm_text": "```python\nANSWER = pow(2, 10, 7)\nprint(ANSWER)\n```",
+          "code": "ANSWER = pow(2, 10, 7)\nprint(ANSWER)",
+          "answer": 2,
+          "sandbox_ok": true,
+          "sandbox_error": null,
+          "stdout": "2",
+          "feedback": null
+        }
+      ]
     },
     {
       "id": "demo_02",
-      "gold": 1275,
-      "gold_cmp": 1275,
-      "pred": 1275,
+      "problem": "Find the sum of the first 40 positive integers. Report an integer in [0, 999].",
+      "gold": 820,
+      "gold_cmp": 820,
+      "pred": 820,
       "correct": true,
       "success": true,
       "attempts": 1,
-      "elapsed_s": 0.0,
+      "elapsed_s": 0.092,
       "model": "mock-templates",
       "backend": "mock",
       "votes": [
-        1275
+        820
       ],
+      "vote_counts": {
+        "820": 1
+      },
+      "vote_agreement": 1.0,
+      "vote_tied": false,
+      "defaulted": false,
+      "budget_exhausted": false,
+      "execution_success": true,
+      "sandbox_failures": 0,
+      "sandbox_timeouts": 0,
+      "failure_types": [],
       "tags": [
         "series"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "source": "original-demo",
+      "trace": [
+        {
+          "index": 1,
+          "vote_round": 1,
+          "correction_index": 0,
+          "seed": 2026,
+          "llm_text": "```python\nn = 40\nANSWER = n * (n + 1) // 2\nprint(ANSWER)\n```",
+          "code": "n = 40\nANSWER = n * (n + 1) // 2\nprint(ANSWER)",
+          "answer": 820,
+          "sandbox_ok": true,
+          "sandbox_error": null,
+          "stdout": "820",
+          "feedback": null
+        }
+      ]
     },
     {
       "id": "demo_03",
+      "problem": "How many positive divisors does 360 have? Report an integer in [0, 999].",
       "gold": 24,
       "gold_cmp": 24,
       "pred": 24,
       "correct": true,
       "success": true,
       "attempts": 1,
-      "elapsed_s": 0.001,
+      "elapsed_s": 0.09,
       "model": "mock-templates",
       "backend": "mock",
       "votes": [
         24
       ],
+      "vote_counts": {
+        "24": 1
+      },
+      "vote_agreement": 1.0,
+      "vote_tied": false,
+      "defaulted": false,
+      "budget_exhausted": false,
+      "execution_success": true,
+      "sandbox_failures": 0,
+      "sandbox_timeouts": 0,
+      "failure_types": [],
       "tags": [
         "number-theory",
         "divisors"
       ],
-      "difficulty": "easy"
+      "difficulty": "easy",
+      "source": "original-demo",
+      "trace": [
+        {
+          "index": 1,
+          "vote_round": 1,
+          "correction_index": 0,
+          "seed": 2026,
+          "llm_text": "```python\ndef num_divisors(n):\n    c = 0\n    for i in range(1, int(n**0.5) + 1):\n        if n % i == 0:\n            c += 1 if i * i == n else 2\n    return c\nANSWER = num_divisors(360)\nprint(ANSWER)\n```",
+          "code": "def num_divisors(n):\n    c = 0\n    for i in range(1, int(n**0.5) + 1):\n        if n % i == 0:\n            c += 1 if i * i == n else 2\n    return c\nANSWER = num_divisors(360)\nprint(ANSWER)",
+          "answer": 24,
+          "sandbox_ok": true,
+          "sandbox_error": null,
+          "stdout": "24",
+          "feedback": null
+        }
+      ]
     },
     {
       "id": "demo_04",
+      "problem": "Find the last three digits of 7^5 (i.e., 7^5 mod 1000). Report an integer in [0, 999].",
       "gold": 807,
       "gold_cmp": 807,
       "pred": 807,
       "correct": true,
       "success": true,
       "attempts": 1,
-      "elapsed_s": 0.0,
+      "elapsed_s": 0.09,
       "model": "mock-templates",
       "backend": "mock",
       "votes": [
         807
       ],
+      "vote_counts": {
+        "807": 1
+      },
+      "vote_agreement": 1.0,
+      "vote_tied": false,
+      "defaulted": false,
+      "budget_exhausted": false,
+      "execution_success": true,
+      "sandbox_failures": 0,
+      "sandbox_timeouts": 0,
+      "failure_types": [],
       "tags": [
         "modular-arithmetic"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "source": "original-demo",
+      "trace": [
+        {
+          "index": 1,
+          "vote_round": 1,
+          "correction_index": 0,
+          "seed": 2026,
+          "llm_text": "```python\nANSWER = pow(7, 5, 1000)\nprint(ANSWER)\n```",
+          "code": "ANSWER = pow(7, 5, 1000)\nprint(ANSWER)",
+          "answer": 807,
+          "sandbox_ok": true,
+          "sandbox_error": null,
+          "stdout": "807",
+          "feedback": null
+        }
+      ]
     },
     {
       "id": "demo_05",
+      "problem": "A bag contains 5 red and 3 blue marbles. In how many ways can 3 marbles be chosen if order does not matter? Report an integer in [0, 999].",
       "gold": 56,
       "gold_cmp": 56,
       "pred": 56,
       "correct": true,
       "success": true,
       "attempts": 1,
-      "elapsed_s": 0.001,
+      "elapsed_s": 0.095,
       "model": "mock-templates",
       "backend": "mock",
       "votes": [
         56
       ],
+      "vote_counts": {
+        "56": 1
+      },
+      "vote_agreement": 1.0,
+      "vote_tied": false,
+      "defaulted": false,
+      "budget_exhausted": false,
+      "execution_success": true,
+      "sandbox_failures": 0,
+      "sandbox_timeouts": 0,
+      "failure_types": [],
       "tags": [
         "combinatorics"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "source": "original-demo",
+      "trace": [
+        {
+          "index": 1,
+          "vote_round": 1,
+          "correction_index": 0,
+          "seed": 2026,
+          "llm_text": "```python\nANSWER = math.comb(8, 3)\nprint(ANSWER)\n```",
+          "code": "ANSWER = math.comb(8, 3)\nprint(ANSWER)",
+          "answer": 56,
+          "sandbox_ok": true,
+          "sandbox_error": null,
+          "stdout": "56",
+          "feedback": null
+        }
+      ]
     },
     {
       "id": "demo_06",
+      "problem": "Solve for the positive integer n: n^2 + n - 56 = 0 has integer root n. Report that positive integer root.",
       "gold": 7,
       "gold_cmp": 7,
       "pred": 7,
       "correct": true,
       "success": true,
       "attempts": 1,
-      "elapsed_s": 0.031,
+      "elapsed_s": 0.09,
       "model": "mock-templates",
       "backend": "mock",
       "votes": [
         7
       ],
+      "vote_counts": {
+        "7": 1
+      },
+      "vote_agreement": 1.0,
+      "vote_tied": false,
+      "defaulted": false,
+      "budget_exhausted": false,
+      "execution_success": true,
+      "sandbox_failures": 0,
+      "sandbox_timeouts": 0,
+      "failure_types": [],
       "tags": [
         "algebra",
         "quadratic"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "source": "original-demo",
+      "trace": [
+        {
+          "index": 1,
+          "vote_round": 1,
+          "correction_index": 0,
+          "seed": 2026,
+          "llm_text": "```python\nsols = [n for n in range(1, 100) if n*n + n - 56 == 0]\nANSWER = sols[0]\nprint(ANSWER)\n```",
+          "code": "sols = [n for n in range(1, 100) if n*n + n - 56 == 0]\nANSWER = sols[0]\nprint(ANSWER)",
+          "answer": 7,
+          "sandbox_ok": true,
+          "sandbox_error": null,
+          "stdout": "7",
+          "feedback": null
+        }
+      ]
     },
     {
       "id": "demo_07",
+      "problem": "What is gcd(252, 105)? Report an integer in [0, 999].",
       "gold": 21,
       "gold_cmp": 21,
       "pred": 21,
       "correct": true,
       "success": true,
       "attempts": 1,
-      "elapsed_s": 0.0,
+      "elapsed_s": 0.092,
       "model": "mock-templates",
       "backend": "mock",
       "votes": [
         21
       ],
+      "vote_counts": {
+        "21": 1
+      },
+      "vote_agreement": 1.0,
+      "vote_tied": false,
+      "defaulted": false,
+      "budget_exhausted": false,
+      "execution_success": true,
+      "sandbox_failures": 0,
+      "sandbox_timeouts": 0,
+      "failure_types": [],
       "tags": [
         "number-theory",
         "gcd"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "source": "original-demo",
+      "trace": [
+        {
+          "index": 1,
+          "vote_round": 1,
+          "correction_index": 0,
+          "seed": 2026,
+          "llm_text": "```python\nANSWER = math.gcd(252, 105)\nprint(ANSWER)\n```",
+          "code": "ANSWER = math.gcd(252, 105)\nprint(ANSWER)",
+          "answer": 21,
+          "sandbox_ok": true,
+          "sandbox_error": null,
+          "stdout": "21",
+          "feedback": null
+        }
+      ]
     },
     {
       "id": "demo_08",
+      "problem": "Find the number of integers n with 1 <= n <= 100 that are coprime to 100 (i.e., Euler's totient phi(100)). Report an integer in [0, 999].",
       "gold": 40,
       "gold_cmp": 40,
       "pred": 40,
       "correct": true,
       "success": true,
       "attempts": 1,
-      "elapsed_s": 0.0,
+      "elapsed_s": 0.104,
       "model": "mock-templates",
       "backend": "mock",
       "votes": [
         40
       ],
+      "vote_counts": {
+        "40": 1
+      },
+      "vote_agreement": 1.0,
+      "vote_tied": false,
+      "defaulted": false,
+      "budget_exhausted": false,
+      "execution_success": true,
+      "sandbox_failures": 0,
+      "sandbox_timeouts": 0,
+      "failure_types": [],
       "tags": [
         "number-theory",
         "totient"
       ],
-      "difficulty": "hard"
+      "difficulty": "medium",
+      "source": "original-demo",
+      "trace": [
+        {
+          "index": 1,
+          "vote_round": 1,
+          "correction_index": 0,
+          "seed": 2026,
+          "llm_text": "```python\nANSWER = sum(1 for n in range(1, 101) if math.gcd(n, 100) == 1)\nprint(ANSWER)\n```",
+          "code": "ANSWER = sum(1 for n in range(1, 101) if math.gcd(n, 100) == 1)\nprint(ANSWER)",
+          "answer": 40,
+          "sandbox_ok": true,
+          "sandbox_error": null,
+          "stdout": "40",
+          "feedback": null
+        }
+      ]
     },
     {
       "id": "demo_09",
+      "problem": "Compute sum_{k=1}^{10} k^2. Report an integer in [0, 999].",
       "gold": 385,
       "gold_cmp": 385,
       "pred": 385,
       "correct": true,
       "success": true,
       "attempts": 1,
-      "elapsed_s": 0.0,
+      "elapsed_s": 0.095,
       "model": "mock-templates",
       "backend": "mock",
       "votes": [
         385
       ],
+      "vote_counts": {
+        "385": 1
+      },
+      "vote_agreement": 1.0,
+      "vote_tied": false,
+      "defaulted": false,
+      "budget_exhausted": false,
+      "execution_success": true,
+      "sandbox_failures": 0,
+      "sandbox_timeouts": 0,
+      "failure_types": [],
       "tags": [
         "series"
       ],
-      "difficulty": "medium"
+      "difficulty": "medium",
+      "source": "original-demo",
+      "trace": [
+        {
+          "index": 1,
+          "vote_round": 1,
+          "correction_index": 0,
+          "seed": 2026,
+          "llm_text": "```python\nANSWER = sum(k*k for k in range(1, 11))\nprint(ANSWER)\n```",
+          "code": "ANSWER = sum(k*k for k in range(1, 11))\nprint(ANSWER)",
+          "answer": 385,
+          "sandbox_ok": true,
+          "sandbox_error": null,
+          "stdout": "385",
+          "feedback": null
+        }
+      ]
     },
     {
       "id": "demo_10",
+      "problem": "How many trailing zeros are in 100! (decimal representation)? Report an integer in [0, 999].",
       "gold": 24,
       "gold_cmp": 24,
       "pred": 24,
       "correct": true,
       "success": true,
       "attempts": 1,
-      "elapsed_s": 0.0,
+      "elapsed_s": 0.092,
       "model": "mock-templates",
       "backend": "mock",
       "votes": [
         24
       ],
+      "vote_counts": {
+        "24": 1
+      },
+      "vote_agreement": 1.0,
+      "vote_tied": false,
+      "defaulted": false,
+      "budget_exhausted": false,
+      "execution_success": true,
+      "sandbox_failures": 0,
+      "sandbox_timeouts": 0,
+      "failure_types": [],
       "tags": [
         "number-theory",
         "factorials"
       ],
-      "difficulty": "hard"
+      "difficulty": "medium",
+      "source": "original-demo",
+      "trace": [
+        {
+          "index": 1,
+          "vote_round": 1,
+          "correction_index": 0,
+          "seed": 2026,
+          "llm_text": "```python\ndef trailing_zeros(n):\n    z = 0\n    while n:\n        n //= 5\n        z += n\n    return z\nANSWER = trailing_zeros(100)\nprint(ANSWER)\n```",
+          "code": "def trailing_zeros(n):\n    z = 0\n    while n:\n        n //= 5\n        z += n\n    return z\nANSWER = trailing_zeros(100)\nprint(ANSWER)",
+          "answer": 24,
+          "sandbox_ok": true,
+          "sandbox_error": null,
+          "stdout": "24",
+          "feedback": null
+        }
+      ]
     }
   ],
   "notes": "Competition path uses open-weight Qwen2.5-Math-7B via transformers (offline, Kaggle GPU, no external API) \u2014 aligned with kernel danielsolo1770/alpha-math. Use configs/smoke_mock.yaml for CPU pipeline tests without downloading weights."

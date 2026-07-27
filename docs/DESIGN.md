@@ -1,77 +1,78 @@
-# ALPHA-MATH — Design Notes
+# ALPHA-MATH design and invariants
 
-This document summarizes the research roadmap and what is **implemented in this repository today**, aligned with the published Kaggle kernel [`danielsolo1770/alpha-math`](https://www.kaggle.com/code/danielsolo1770/alpha-math).
+## Objective
 
-## Vision
+Produce auditable integer predictions for olympiad-style problems with a local
+math model and executable exact computation. The system is optimized for
+evidence quality under a one-GPU, offline Kaggle runtime—not for serving
+untrusted public code.
 
-Build a lightweight, high-reliability agent for **IMO / AIME-style** problems by combining:
+## Agent state machine
 
-1. **Logical reasoning** from a math-specialized open language model  
-2. **Mathematical precision** via Python + SymPy execution  
-3. **Self-correction** through a verifier loop (System 2)  
-4. **Self-consistency** via majority vote over independent samples  
+For every vote round:
 
-Target competition framing:  
-[AI Mathematical Olympiad — Progress Prize 3](https://www.kaggle.com/competitions/ai-mathematical-olympiad-progress-prize-3)
+1. Send the original problem and code-only contract to the model.
+2. Execute the generated program in a fresh restricted worker.
+3. On failure, send the original problem, previous response/code, captured
+   stdout, and error in a stateful correction conversation.
+4. Stop after `max_corrections`, or add the first valid integer to the vote set.
+5. Stop sampling when a strict majority of the planned `k` votes is reached.
 
-## What shipped on Kaggle
+`max_corrections=2` therefore means up to **three total generations** per vote:
+one initial attempt and two corrections.
 
-| Piece | Kaggle notebook (v3) | This repo |
-|-------|----------------------|-----------|
-| Model | **Qwen2.5-Math-7B** via Kaggle Model `urvishp80/qwen-2.5-math-7b` | Same default (`llm.model` / `model_path`) |
-| Precision | `float16`, `device_map=auto` | Same (`load_in_4bit: false`) |
-| Samples | `num_generations=3` | `agent.majority_vote_k: 3` |
-| Retries | `max_correction_attempts=2` | `agent.max_attempts: 2` |
-| Sampling | `temperature=0.7`, `top_p=0.9` | Same |
-| Prompt | Strict “Python generator” + sympy | `src/prompts.py` |
-| Sandbox | Multiprocessing `exec` + timeout | AST-gated sandbox (stricter, safer) |
-| Submission | `id,prediction` | Configurable (`paths.answer_column`) |
-| Fail-safe | Return `0` if all paths fail | `default_answer_on_fail: 0` |
+## Correctness invariants
 
-## Architecture (runtime)
+- A vote exists only when restricted execution succeeds and yields an integer.
+- Model text alone cannot vote; the tool output is authoritative.
+- Default answer `0` is marked `defaulted=true` and never counted as a successful
+  labeled evaluation.
+- Every attempt records its vote round, correction index, deterministic seed,
+  generated code, stdout, error, and execution result.
+- Mock backend selection is explicit; real backends cannot silently fall back.
+- Labeled reports preserve gold and normalized gold separately.
 
+## Sandbox lifecycle
+
+The parent launches `python -m src.sandbox --worker`, sends a JSON request, and
+waits with a hard timeout. On timeout the OS process is killed. The child:
+
+- rewrites allow-listed math imports;
+- validates the resulting AST;
+- exposes a minimal builtin set and selected math modules;
+- captures output under a character cap;
+- executes and coerces a final integer;
+- returns one JSON protocol message.
+
+This design trades roughly 0.1 seconds of process startup for deterministic
+termination. Model generation dominates the runtime for 7B inference.
+
+## Reproducibility
+
+Seeds follow:
+
+```text
+base_seed + (vote_round - 1) * 1000 + correction_index
 ```
-Problem text
-    │
-    ▼
-Qwen2.5-Math-7B  (Transformers, local weights, chat template)
-    │  Python code in ```python``` fence
-    ▼
-AST-gated sandbox  (math, sympy, … · timeout · no OS / network)
-    │
-    ▼
-integer from stdout / ANSWER  ──► retry on error  ──► majority vote (k=3)
-    │
-    ▼
-submission.csv  (id, prediction)
-```
 
-### Backends
+The run manifest records the resolved config, dataset path, package versions,
+Python/platform, GPU model/memory, CUDA version, Git commit/dirty state, and
+preflight results.
 
-| `llm.backend` | Use case |
-|---------------|----------|
-| `transformers` / `qwen_math` (**default**) | Open-weight math model on local/Kaggle GPU |
-| `mock` | CPU smoke test of the tool loop only |
-| `openai` / `openai_compatible` | Optional servers (not for AIMO submit) |
-| `anthropic` | Optional cloud (not for AIMO submit) |
+## Evidence levels
 
-## Roadmap (research beyond the shipped agent)
+1. `mock_pipeline_only`: tests integration, never model quality.
+2. `bundled_sanity`: real model on original easy/medium sanity problems.
+3. `external_labeled`: real model on a named labeled dataset.
+4. `competition_submission`: predictions without hidden accuracy.
 
-| Phase | Goal | Status |
-|------:|------|--------|
-| 1 | Logic-enriched student via teacher distillation | Not implemented (needs multi-GPU) |
-| 2 | QLoRA specialization on olympiad CoT + tool traces | Scaffold only (`docs/TRAINING.md`) |
-| 3 | Sandbox + generate→execute→verify + majority vote | **Implemented** (Kaggle-aligned) |
-| 4 | Quantization / pruning for tighter VRAM | Optional 4-bit flag only |
-| 5 | Portfolio release, eval harness, documentation | **Implemented** |
+Public claims must identify the evidence level and retain the manifest.
 
-## Honesty policy
+## Known boundaries
 
-- Default `mock` accuracy on `data/sample_problems.json` measures the **tool loop**, not olympiad intelligence.
-- No fabricated Kaggle leaderboard score is claimed.
-- Distillation / QLoRA weights are **not** included unless separately trained and released.
-- The original notebook used unrestricted `exec` in a subprocess; this repo replaces that with an **AST-gated** sandbox for safer demos.
-
-## Security note
-
-The sandbox blocks imports (rewrites allowed math imports), dunder attributes, and common OS primitives, and enforces a wall-clock timeout. It is **not** a multi-tenant security boundary. Untrusted code should run in a container / microVM with no network.
+- The worker is not a container/microVM and should not accept arbitrary public
+  user code.
+- The per-problem time budget is checked between generations; a model generation
+  itself is not preempted.
+- Majority voting handles stochastic disagreement but does not prove correctness.
+- No training/fine-tuned weights are claimed by the shipped inference system.

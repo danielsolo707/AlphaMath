@@ -1,0 +1,3 @@
+# Optional NF4/8-bit CUDA loading (Linux only)
+-r gpu.txt
+bitsandbytes==0.49.2; platform_system == "Linux"

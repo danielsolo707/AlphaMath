@@ -1,21 +1,24 @@
-# CPU-only pipeline smoke test (no GPU / no model download).
-# Does NOT represent competition inference.
-
+# CPU-only integration test. This does not measure model intelligence.
 competition: ai-mathematical-olympiad-progress-prize-3
 answer_min: 0
 answer_max: 999
 
 agent:
-  max_attempts: 2
+  max_corrections: 2
   temperature: 0.0
   top_p: 1.0
   majority_vote_k: 1
+  early_stop_majority: true
+  seed: 2026
   clamp_answer: false
   verbose_prompts: false
-  default_answer_on_fail: null   # do not default to 0 during unit eval
+  default_answer_on_fail: null
 
 sandbox:
   timeout_seconds: 5
+  max_output_chars: 8000
+  max_source_chars: 50000
+  memory_limit_mb: 1536
   allowed_modules:
     - math
     - fractions

@@ -1,0 +1,173 @@
+{
+  "schema_version": "1.0",
+  "config": {
+    "competition": "ai-mathematical-olympiad-progress-prize-3",
+    "answer_min": 0,
+    "answer_max": 999,
+    "agent": {
+      "max_corrections": 2,
+      "temperature": 0.7,
+      "top_p": 0.9,
+      "time_budget_seconds": 180,
+      "majority_vote_k": 3,
+      "early_stop_majority": true,
+      "seed": 2026,
+      "clamp_answer": true,
+      "verbose_prompts": false,
+      "default_answer_on_fail": 0
+    },
+    "sandbox": {
+      "timeout_seconds": 8,
+      "max_output_chars": 8000,
+      "max_source_chars": 50000,
+      "memory_limit_mb": 1536,
+      "allowed_modules": [
+        "math",
+        "fractions",
+        "decimal",
+        "itertools",
+        "functools",
+        "collections",
+        "sympy",
+        "numpy"
+      ]
+    },
+    "llm": {
+      "backend": "transformers",
+      "model": "Qwen/Qwen2.5-Math-7B-Instruct",
+      "model_path": "/kaggle/input/datasets/mehedi457/qwen25-math-7b-instruct",
+      "local_files_only": true,
+      "load_in_4bit": true,
+      "load_in_8bit": false,
+      "torch_dtype": "float16",
+      "device_map": "auto",
+      "max_new_tokens": 768,
+      "trust_remote_code": false,
+      "allow_mock_fallback": false,
+      "revision": null
+    },
+    "paths": {
+      "sample_problems": "/kaggle/working/alphamath_source/AlphaMath/data/sample_problems.json",
+      "results_dir": "/kaggle/working/alphamath_artifacts",
+      "test_csv": "/kaggle/input/ai-mathematical-olympiad-progress-prize-3/test.csv",
+      "submission_csv": "/kaggle/working/alphamath_artifacts/submission.csv",
+      "answer_column": "/kaggle/working/alphamath_source/AlphaMath/prediction"
+    }
+  },
+  "environment": {
+    "created_at_utc": "2026-07-27T15:21:09.159808+00:00",
+    "python": "3.12.13 (main, Mar  4 2026, 09:23:07) [GCC 11.4.0]",
+    "executable": "/usr/bin/python3",
+    "platform": "Linux-6.12.90+-x86_64-with-glibc2.35",
+    "processor": "x86_64",
+    "packages": {
+      "torch": "2.10.0+cu128",
+      "transformers": "5.0.0",
+      "accelerate": "1.13.0",
+      "bitsandbytes": "0.49.2",
+      "sympy": "1.14.0",
+      "numpy": "2.0.2",
+      "pyyaml": "6.0.3"
+    },
+    "hardware": {
+      "cuda_available": true,
+      "torch_cuda_version": "12.8",
+      "gpu_name": "Tesla T4",
+      "gpu_memory_gb": 14.56,
+      "compute_capability": "7.5"
+    },
+    "git": {
+      "commit": null,
+      "dirty": null,
+      "bundle_source_commit": "5d2f49740412f9c3e6524e55475e6453f41a937b",
+      "bundle_source_dirty": true,
+      "bundle_created_at_utc": "2026-07-27T15:04:12.479389+00:00"
+    },
+    "kaggle_kernel_run_type": "Batch",
+    "dependency_bootstrap": "{\"installed\": true, \"version\": \"0.49.2\", \"network_used\": true}"
+  },
+  "preflight": {
+    "ok": true,
+    "backend": "transformers",
+    "platform": "Linux-6.12.90+-x86_64-with-glibc2.35",
+    "checks": [
+      {
+        "name": "python",
+        "ok": true,
+        "required": true,
+        "detail": "3.12.13"
+      },
+      {
+        "name": "dependency:yaml",
+        "ok": true,
+        "required": true,
+        "detail": "installed"
+      },
+      {
+        "name": "dependency:sympy",
+        "ok": true,
+        "required": true,
+        "detail": "installed"
+      },
+      {
+        "name": "dependency:numpy",
+        "ok": true,
+        "required": true,
+        "detail": "installed"
+      },
+      {
+        "name": "dependency:torch",
+        "ok": true,
+        "required": true,
+        "detail": "installed"
+      },
+      {
+        "name": "dependency:transformers",
+        "ok": true,
+        "required": true,
+        "detail": "installed"
+      },
+      {
+        "name": "dependency:accelerate",
+        "ok": true,
+        "required": true,
+        "detail": "installed"
+      },
+      {
+        "name": "dependency:bitsandbytes",
+        "ok": true,
+        "required": true,
+        "detail": "installed"
+      },
+      {
+        "name": "model_path",
+        "ok": true,
+        "required": true,
+        "detail": "/kaggle/input/datasets/mehedi457/qwen25-math-7b-instruct"
+      },
+      {
+        "name": "model_config",
+        "ok": true,
+        "required": true,
+        "detail": "/kaggle/input/datasets/mehedi457/qwen25-math-7b-instruct/config.json"
+      },
+      {
+        "name": "cuda",
+        "ok": true,
+        "required": true,
+        "detail": "Tesla T4"
+      },
+      {
+        "name": "sandbox",
+        "ok": true,
+        "required": true,
+        "detail": "answer=42, elapsed=0.097s"
+      }
+    ],
+    "failures": []
+  },
+  "benchmark": "/kaggle/working/alphamath_source/AlphaMath/data/sample_problems.json",
+  "test_csv": null,
+  "dataset_tier": "bundled_sanity",
+  "ablation_ran": false
+}

@@ -43,27 +43,55 @@ print(ANSWER)
 """
 
 
-def build_user_prompt(problem: str, feedback: str | None = None) -> str:
-    """User turn — Kaggle style first attempt; feedback turns match notebook retries."""
-    if not feedback:
-        return f"Write a Python script using sympy to solve this problem: {problem.strip()}"
-    return (
-        f"The code failed with error:\n{feedback.strip()}\n"
-        "Fix it and output the entire code again inside ```python and ```."
-    )
+def build_user_prompt(problem: str) -> str:
+    """Build the original problem turn.
+
+    The problem is intentionally kept as its own message so correction turns can
+    preserve the complete conversation instead of asking the model to repair an
+    unknown script.
+    """
+    return f"Write a Python script using sympy to solve this problem: {problem.strip()}"
 
 
 def build_messages(
     problem: str,
     feedback: str | None = None,
     *,
+    previous_response: str | None = None,
+    previous_code: str | None = None,
     verbose_system: bool = False,
 ) -> list[dict[str, str]]:
+    """Build a first-attempt or stateful correction conversation."""
     system = SYSTEM_PROMPT_VERBOSE if verbose_system else SYSTEM_PROMPT
-    return [
+    messages = [
         {"role": "system", "content": system},
-        {"role": "user", "content": build_user_prompt(problem, feedback)},
+        {"role": "user", "content": build_user_prompt(problem)},
     ]
+    if not feedback:
+        return messages
+
+    prior = previous_response
+    if not prior and previous_code:
+        prior = f"```python\n{previous_code.strip()}\n```"
+    messages.append(
+        {
+            "role": "assistant",
+            "content": prior or "```python\n# Previous response was not executable.\n```",
+        }
+    )
+    messages.append(
+        {
+            "role": "user",
+            "content": (
+                "The previous script failed during restricted execution.\n\n"
+                f"EXECUTION_FEEDBACK:\n{feedback.strip()}\n\n"
+                "Diagnose the failure, preserve the original problem requirements, "
+                "and output the complete corrected script inside exactly one "
+                "```python ... ``` block. Print only the final integer."
+            ),
+        }
+    )
+    return messages
 
 
 def extract_code_block(text: str) -> str | None:

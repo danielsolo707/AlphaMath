@@ -32,9 +32,9 @@ tmp/
 .ipynb_checkpoints/
 
 # Local interview prep (keep on disk, do not publish)
+docs/interview/
 INTERVIEW_PRESENTATION.md
 INTERVIEW_PRESENTATION_FA.md
-
 
 # Model weights / large downloads (not shipped — use download script or Kaggle input)
 models/
@@ -51,3 +51,13 @@ secrets/
 ngrok*
 *.token
 kaggle.json
+
+# Locally generated Kaggle upload archives (rebuild with scripts/build_kaggle_bundle.py)
+kaggle/**/*.zip
+
+# Mock smoke runs stay local; frozen real runs under results/kaggle_runs/ are tracked
+results/smoke_run/
+results/*.zip
+
+# Nested accidental source dumps from kernel downloads
+results/kaggle_runs/**/alphamath_source/

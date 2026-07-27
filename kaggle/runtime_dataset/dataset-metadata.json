@@ -1,0 +1,11 @@
+{
+  "title": "AlphaMath Reproducible Runtime Bundle",
+  "id": "danielsolo1770/alphamath-runtime-bundle",
+  "licenses": [
+    {
+      "name": "MIT"
+    }
+  ],
+  "subtitle": "Versioned source bundle for private, reproducible AlphaMath GPU evaluations",
+  "description": "Generated from the AlphaMath repository. The archive contains source, tests, configuration, documentation, and a SHA-256 manifest. Model weights and credentials are excluded."
+}

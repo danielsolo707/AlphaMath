@@ -2,7 +2,7 @@
 
 Behavior mirrors the published Kaggle kernel (danielsolo1770/alpha-math):
   - num_generations independent samples (majority_vote_k)
-  - max_correction_attempts sandbox self-repairs per sample (max_attempts)
+  - one initial generation plus max_corrections stateful repairs per sample
   - temperature / top_p sampling for diversity
   - integer answer extraction from executed code output
 """
@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass, field
+import time
 from typing import Any
 
 from src.llm import BaseLLM, LLMResponse
@@ -28,6 +29,8 @@ class Attempt:
     answer: int | None
     feedback: str | None = None
     vote_round: int = 0
+    correction_index: int = 0
+    seed: int | None = None
 
 
 @dataclass
@@ -52,6 +55,9 @@ class AgentResult:
                 {
                     "index": a.index,
                     "vote_round": a.vote_round,
+                    "correction_index": a.correction_index,
+                    "seed": a.seed,
+                    "llm_text": a.llm_text,
                     "code": a.code,
                     "answer": a.answer,
                     "sandbox_ok": a.sandbox.ok if a.sandbox else False,
@@ -70,7 +76,8 @@ class MathAgent:
         self,
         llm: BaseLLM,
         *,
-        max_attempts: int = 2,
+        max_corrections: int = 2,
+        max_attempts: int | None = None,
         temperature: float = 0.7,
         top_p: float = 0.9,
         sandbox_timeout: float = 5.0,
@@ -81,9 +88,19 @@ class MathAgent:
         majority_vote_k: int = 3,
         verbose_prompts: bool = False,
         default_answer_on_fail: int | None = 0,
+        max_output_chars: int = 8000,
+        max_source_chars: int = 50_000,
+        memory_limit_mb: int | None = 1536,
+        time_budget_seconds: float | None = None,
+        base_seed: int = 2026,
+        early_stop_majority: bool = True,
     ) -> None:
         self.llm = llm
-        self.max_attempts = max_attempts
+        # ``max_attempts`` is accepted for backward compatibility. Historically
+        # it was documented as corrections but implemented as total attempts.
+        if max_attempts is not None:
+            max_corrections = max_attempts
+        self.max_corrections = max(0, int(max_corrections))
         self.temperature = temperature
         self.top_p = top_p
         self.sandbox_timeout = sandbox_timeout
@@ -95,6 +112,12 @@ class MathAgent:
         self.verbose_prompts = verbose_prompts
         # Kaggle notebook returns 0 when every sample fails (format-safe).
         self.default_answer_on_fail = default_answer_on_fail
+        self.max_output_chars = max(256, int(max_output_chars))
+        self.max_source_chars = max(1000, int(max_source_chars))
+        self.memory_limit_mb = memory_limit_mb
+        self.time_budget_seconds = time_budget_seconds
+        self.base_seed = int(base_seed)
+        self.early_stop_majority = bool(early_stop_majority)
 
     def _normalize(self, answer: int | None) -> int | None:
         if answer is None:
@@ -109,16 +132,49 @@ class MathAgent:
         return int(answer)
 
     def _one_pass(
-        self, problem: str, feedback: str | None, vote_round: int, index: int
+        self,
+        problem: str,
+        feedback: str | None,
+        previous_response: str | None,
+        previous_code: str | None,
+        vote_round: int,
+        correction_index: int,
+        index: int,
     ) -> tuple[Attempt, LLMResponse]:
         messages = build_messages(
-            problem, feedback, verbose_system=self.verbose_prompts
+            problem,
+            feedback,
+            previous_response=previous_response,
+            previous_code=previous_code,
+            verbose_system=self.verbose_prompts,
         )
-        resp: LLMResponse = self.llm.complete(
-            messages,
-            temperature=self.temperature,
-            top_p=self.top_p,
-        )
+        seed = self.base_seed + (vote_round - 1) * 1000 + correction_index
+        try:
+            resp: LLMResponse = self.llm.complete(
+                messages,
+                temperature=self.temperature,
+                top_p=self.top_p,
+                seed=seed,
+            )
+        except Exception as exc:  # surface generation failures in the audit trace
+            resp = LLMResponse(
+                text="",
+                model=type(self.llm).__name__,
+                backend="generation_error",
+                raw=None,
+            )
+            attempt = Attempt(
+                index=index,
+                llm_text="",
+                code=None,
+                sandbox=None,
+                answer=None,
+                feedback=f"LLMGenerationError: {type(exc).__name__}: {exc}",
+                vote_round=vote_round,
+                correction_index=correction_index,
+                seed=seed,
+            )
+            return attempt, resp
         code = extract_code_block(resp.text)
         sandbox: SandboxResult | None = None
         answer: int | None = None
@@ -134,6 +190,9 @@ class MathAgent:
                 code,
                 timeout_seconds=self.sandbox_timeout,
                 allowed_modules=self.allowed_modules,
+                max_output_chars=self.max_output_chars,
+                max_source_chars=self.max_source_chars,
+                memory_limit_mb=self.memory_limit_mb,
             )
             if sandbox.ok and sandbox.answer is not None:
                 answer = self._normalize(sandbox.answer)
@@ -153,6 +212,8 @@ class MathAgent:
                     )
             else:
                 err = sandbox.error or "Unknown execution error"
+                if sandbox.stdout:
+                    err += f"\nCAPTURED_STDOUT:\n{sandbox.stdout[-2000:]}"
                 fb = err
 
         attempt = Attempt(
@@ -163,6 +224,8 @@ class MathAgent:
             answer=answer,
             feedback=fb,
             vote_round=vote_round,
+            correction_index=correction_index,
+            seed=seed,
         )
         return attempt, resp
 
@@ -172,14 +235,33 @@ class MathAgent:
         last_model = ""
         last_backend = ""
         idx = 0
+        started = time.perf_counter()
+        stopped_early = False
+        budget_exhausted = False
 
         for vote_round in range(1, self.majority_vote_k + 1):
             feedback: str | None = None
             answer: int | None = None
+            previous_response: str | None = None
+            previous_code: str | None = None
 
-            for _ in range(self.max_attempts):
+            for correction_index in range(self.max_corrections + 1):
+                if (
+                    self.time_budget_seconds is not None
+                    and time.perf_counter() - started >= self.time_budget_seconds
+                ):
+                    budget_exhausted = True
+                    break
                 idx += 1
-                attempt, resp = self._one_pass(problem, feedback, vote_round, idx)
+                attempt, resp = self._one_pass(
+                    problem,
+                    feedback,
+                    previous_response,
+                    previous_code,
+                    vote_round,
+                    correction_index,
+                    idx,
+                )
                 attempts.append(attempt)
                 last_model = resp.model or last_model
                 last_backend = resp.backend or last_backend
@@ -187,14 +269,27 @@ class MathAgent:
                     answer = attempt.answer
                     break
                 feedback = attempt.feedback or "Unknown failure; revise the solution."
+                previous_response = resp.text
+                previous_code = attempt.code
 
             if answer is not None:
                 votes.append(answer)
+                current_count = Counter(votes).most_common(1)[0][1]
+                if self.early_stop_majority and current_count > self.majority_vote_k // 2:
+                    stopped_early = True
+                    break
+            if budget_exhausted:
+                break
 
         final: int | None = None
         success = False
+        vote_counts = Counter(votes)
+        tied = False
+        agreement = 0.0
         if votes:
-            final, _count = Counter(votes).most_common(1)[0]
+            final, top_count = vote_counts.most_common(1)[0]
+            tied = sum(1 for count in vote_counts.values() if count == top_count) > 1
+            agreement = top_count / len(votes)
             success = True
         elif self.default_answer_on_fail is not None:
             final = int(self.default_answer_on_fail)
@@ -209,7 +304,16 @@ class MathAgent:
             meta={
                 "votes": votes,
                 "majority_vote_k": self.majority_vote_k,
-                "vote_counts": dict(Counter(votes)),
+                "vote_counts": dict(vote_counts),
+                "vote_agreement": round(agreement, 4),
+                "vote_tied": tied,
+                "strict_majority": bool(votes and max(vote_counts.values()) > self.majority_vote_k // 2),
+                "rounds_completed": len(votes),
+                "stopped_early": stopped_early,
+                "budget_exhausted": budget_exhausted,
+                "elapsed_s": round(time.perf_counter() - started, 4),
+                "base_seed": self.base_seed,
+                "max_corrections": self.max_corrections,
                 "defaulted": bool(not votes and self.default_answer_on_fail is not None),
             },
         )

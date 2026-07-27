@@ -1,111 +1,90 @@
-# Kaggle / AIMO offline runbook
+# Kaggle runbook
 
-ALPHA-MATH is built for **AIMO Progress Prize** constraints and matches the
-published kernel [`danielsolo1770/alpha-math`](https://www.kaggle.com/code/danielsolo1770/alpha-math).
+## Inputs to attach
 
-| Constraint | How we satisfy it |
-|------------|-------------------|
-| No external LLM APIs | Local **Qwen2.5-Math-7B** via Transformers |
-| No internet at score time | `local_files_only: true` + weights attached as input |
-| GPU notebook | `float16` + `device_map=auto` on **T4 16GB** (optional 4-bit) |
-| Integer answers | Sandbox stdout / `ANSWER` + majority vote |
+1. `kaggle/AlphaMath_Kaggle_Bundle.zip` built by
+   `python scripts/build_kaggle_bundle.py`.
+2. Qwen2.5-Math-7B-Instruct weights; point to the directory containing
+   `config.json`.
+3. Optional labeled benchmark (`.json`, `.jsonl`, or `.csv`).
+4. Optional AIMO competition data containing `test.csv` and preferably
+   `sample_submission.csv`.
 
-## Model (published run)
+Model weights are not embedded in the code ZIP.
 
-Kaggle Model data source attached to the notebook:
+## Automated private CLI workflow
 
-```text
-urvishp80/qwen-2.5-math-7b/Transformers/default/1
-```
-
-Resolved on disk as:
+`python scripts/build_kaggle_bundle.py` also prepares the two folders consumed
+by the official Kaggle CLI:
 
 ```text
-/kaggle/input/models/urvishp80/qwen-2.5-math-7b/transformers/default/1
+kaggle/runtime_dataset/   # metadata + generated source ZIP
+kaggle/kernel/            # private GPU script + kernel metadata
 ```
 
-Hub equivalent for local download:
-
-```text
-Qwen/Qwen2.5-Math-7B-Instruct
-```
-
-(or `Qwen/Qwen2.5-Math-7B` base — use the instruct/chat checkpoint when available)
-
-### Why Qwen2.5-Math
-
-Math-specialized open weights with a strong tool-integrated solving pattern
-(generate code → execute). Drop-in alternatives via the same backend:
-
-- `deepseek-ai/deepseek-math-7b-instruct`
-- other chat-tuned math 7B-class checkpoints with `apply_chat_template`
-
-## Inference recipe (from notebook)
-
-| Knob | Value |
-|------|------:|
-| `num_generations` / `majority_vote_k` | 3 |
-| `max_correction_attempts` / `max_attempts` | 2 |
-| `temperature` | 0.7 |
-| `top_p` | 0.9 |
-| `max_new_tokens` | 1024 |
-| `torch_dtype` | float16 |
-| Fail-safe answer | 0 |
-
-## One-time: get weights offline
-
-### Local machine
+The intended sequence is:
 
 ```bash
-pip install -r requirements-gpu.txt
-python scripts/download_math_model.py
-# → models/qwen2.5-math-7b-instruct/
+kaggle datasets create -p kaggle/runtime_dataset -r zip
+kaggle kernels push -p kaggle/kernel --accelerator NvidiaTeslaT4 -t 21600
+kaggle kernels status danielsolo1770/alpha-math-real-model-evaluation
+kaggle kernels output danielsolo1770/alpha-math-real-model-evaluation -p results/kaggle_real
 ```
 
-### Kaggle
+If the private runtime Dataset already exists, use `kaggle datasets version`
+instead of `create`. The Kernel attaches the public
+`mehedi457/qwen25-math-7b-instruct` weight Dataset, runs regression tests before
+model loading, discovers its actual directory, evaluates ten bundled sanity
+problems, and emits either `alphamath_artifacts.zip` or a diagnostic archive.
+Account IDs and external-source versions in the metadata should be verified before
+the first upload.
 
-1. Add the Qwen2.5-Math Kaggle Model (or upload a Dataset of weights).
-2. Set `model_path` in `configs/kaggle.yaml` to the folder with `config.json`.
-3. **Turn Internet OFF** before final submit.
+## Notebook workflow
 
-## Run submission
+Open `notebooks/alphamath_portfolio_kaggle.ipynb` and run cells in order:
 
-See `notebooks/kaggle_aimo_deepseek_math.ipynb`, or:
+1. Configure exact paths/limits/flags when needed.
+2. Extract or locate the repository.
+3. Discover and validate model weights.
+4. Run regression tests before paying model-load cost.
+5. Load the model once and reuse it for evaluation and submission.
+6. Display and download `/kaggle/working/alphamath_artifacts.zip`.
 
-```python
-from src.kaggle_submit import run_submission
-run_submission(
-    config_path="configs/kaggle.yaml",
-    test_csv="/kaggle/input/ai-mathematical-olympiad-progress-prize-3/test.csv",
-    out_csv="/kaggle/working/submission.csv",
-    model_path="/kaggle/input/models/urvishp80/qwen-2.5-math-7b/transformers/default/1",
-)
-```
+Start with `EVAL_LIMIT=3`, `SUBMISSION_LIMIT=3`, and `RUN_ABLATION=False`.
+After a successful dry run, remove the limits. Enable `RUN_ABLATION=True` for
+the strongest portfolio evidence; it adds two evaluation passes.
 
-Submission columns default to **`id,prediction`** (notebook format). If the
-competition grader expects `answer`, set:
+## Output contract
 
-```yaml
-paths:
-  answer_column: answer
-```
+The final evidence archive includes:
 
-## Config knobs (`configs/kaggle.yaml`)
+- resolved config and environment/GPU/package manifest;
+- preflight results;
+- full per-attempt evaluation traces;
+- flat per-problem CSV;
+- Markdown report;
+- optional ablation table;
+- checkpointed submission and trace.
 
-| Key | Meaning |
-|-----|---------|
-| `llm.model_path` | Local weights directory |
-| `llm.local_files_only` | Must be `true` on Kaggle |
-| `llm.load_in_4bit` | Optional NF4 if VRAM is tight |
-| `agent.majority_vote_k` | Independent samples → majority answer |
-| `agent.max_attempts` | Sandbox self-corrections per sample |
-| `agent.temperature` / `top_p` | Sampling for diversity |
-| `paths.answer_column` | `prediction` or `answer` |
+If a sample submission file is adjacent to the test data, its non-ID column is
+used automatically. Otherwise `paths.answer_column` controls the output schema.
 
-## CPU pipeline test (no GPU)
+## Offline requirements
 
-```bash
-python scripts/run_eval.py --config configs/smoke_mock.yaml
-```
+Kaggle images normally contain Torch, Transformers, NumPy, SymPy, and Accelerate.
+The 7B T4 profile also requires pinned `bitsandbytes==0.49.2` because it loads
+weights in 4-bit. The automated Kernel enables internet only to install that
+missing wheel, records the bootstrap in its manifest/log, and still loads model
+weights locally with Hugging Face offline mode enabled.
+The notebook preflight checks exact availability before model loading. If a
+package is missing, either enable internet temporarily to install
+`requirements/gpu.txt`, or attach offline wheels as an input. Final competition
+inference should use `local_files_only=true` and no external API.
 
-This only checks the agent/sandbox plumbing; it does **not** load Qwen2.5-Math.
+## Reading the report honestly
+
+- `backend=mock` is not a model result.
+- `dataset_tier=bundled_sanity` is only an end-to-end sanity result.
+- Use `dataset_tier=external_labeled` for a public accuracy claim.
+- Hidden competition test data produces a submission but no local accuracy.
+- Keep the artifact ZIP and manifest for every number placed in the README.

@@ -16,7 +16,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--file", "-f", default=None, help="Read problem text from file")
     parser.add_argument("--config", default=None)
     parser.add_argument("--backend", default=None, help="Override llm.backend")
-    parser.add_argument("--model-path", default=None, help="Local DeepSeek-Math weights dir")
+    parser.add_argument("--model-path", default=None, help="Local math-model weights directory")
     parser.add_argument("--json", action="store_true", help="Print full JSON result")
     args = parser.parse_args(argv)
 

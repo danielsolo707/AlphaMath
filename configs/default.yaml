@@ -1,24 +1,25 @@
-# ALPHA-MATH — competition-oriented defaults
-# Open-weight math model + Python/SymPy tool loop (no external APIs).
-# Aligned with Kaggle kernel: danielsolo1770/alpha-math (Qwen2.5-Math-7B).
-
+# ALPHA-MATH - reproducible local/competition defaults
 competition: ai-mathematical-olympiad-progress-prize-3
 answer_min: 0
 answer_max: 999
 
 agent:
-  max_attempts: 2            # sandbox self-repairs per sample (Kaggle: max_correction_attempts)
-  temperature: 0.7           # Kaggle generation temperature
+  max_corrections: 2         # one initial generation + two stateful corrections
+  temperature: 0.7
   top_p: 0.9
-  timeout_seconds: 120
-  majority_vote_k: 3         # independent samples → majority (Kaggle: num_generations)
-  clamp_answer: true         # AIME-style last-three-digits when out of range
-  verbose_prompts: false     # false = strict Kaggle code-only system prompt
-  default_answer_on_fail: 0  # format-safe fallback when all samples fail
+  time_budget_seconds: 180   # checked between generations for each problem
+  majority_vote_k: 3
+  early_stop_majority: true
+  seed: 2026
+  clamp_answer: true
+  verbose_prompts: false
+  default_answer_on_fail: 0
 
 sandbox:
   timeout_seconds: 5
   max_output_chars: 8000
+  max_source_chars: 50000
+  memory_limit_mb: 1536
   allowed_modules:
     - math
     - fractions
@@ -30,21 +31,18 @@ sandbox:
     - numpy
 
 llm:
-  # Primary: Qwen2.5-Math-7B (published Kaggle run used this via Kaggle Model mirror)
   backend: transformers
   model: Qwen/Qwen2.5-Math-7B-Instruct
-  # Local folder with config.json (download script or Kaggle input):
-  # model_path: models/qwen2.5-math-7b-instruct
   model_path: null
   local_files_only: false
-  # Kaggle notebook used float16 full precision (fits T4 ~16GB for 7B)
   load_in_4bit: false
   load_in_8bit: false
   torch_dtype: float16
   device_map: auto
   max_new_tokens: 1024
-  max_tokens: 1024
-  trust_remote_code: true
+  trust_remote_code: false
+  allow_mock_fallback: false
+  revision: null
 
 paths:
   sample_problems: data/sample_problems.json

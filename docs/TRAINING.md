@@ -16,7 +16,7 @@ weights exist.
 | Hardware | Nvidia Tesla T4 |
 | Model | Qwen2.5-Math-7B (Kaggle Model mirror) |
 | Training | **None** — offline inference + code execution |
-| Loop | generate code → execute → self-repair (×2) → majority of 3 |
+| Loop | generate code → execute → up to 2 stateful corrections → strict majority of 3 |
 
 See [`results/pipeline_summary.json`](../results/pipeline_summary.json) and
 [`docs/KAGGLE.md`](./KAGGLE.md).

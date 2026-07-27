@@ -1,0 +1,25 @@
+{
+  "id": "danielsolo1770/alpha-math-real-model-evaluation",
+  "title": "Alpha Math Real Model Evaluation",
+  "code_file": "alpha_math_kaggle.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_tpu": "false",
+  "enable_internet": "true",
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": [
+    "danielsolo1770/alphamath-runtime-bundle",
+    "mehedi457/qwen25-math-7b-instruct"
+  ],
+  "competition_sources": [],
+  "kernel_sources": [],
+  "model_sources": [],
+  "keywords": [
+    "mathematics",
+    "llm",
+    "agents",
+    "reproducibility"
+  ]
+}

@@ -11,9 +11,8 @@
     "id": "demo_02",
     "source": "original-demo",
     "difficulty": "easy",
-    "problem": "Find the sum of the first 50 positive integers. Report an integer in [0, 999].",
-    "answer": 1275,
-    "note": "answer_max check: 1275 exceeds 999 — for portfolio demo we still store true value; agent normalizes only competition mode",
+    "problem": "Find the sum of the first 40 positive integers. Report an integer in [0, 999].",
+    "answer": 820,
     "tags": ["series"]
   },
   {
@@ -59,7 +58,7 @@
   {
     "id": "demo_08",
     "source": "original-demo",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "problem": "Find the number of integers n with 1 <= n <= 100 that are coprime to 100 (i.e., Euler's totient phi(100)). Report an integer in [0, 999].",
     "answer": 40,
     "tags": ["number-theory", "totient"]
@@ -75,7 +74,7 @@
   {
     "id": "demo_10",
     "source": "original-demo",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "problem": "How many trailing zeros are in 100! (decimal representation)? Report an integer in [0, 999].",
     "answer": 24,
     "tags": ["number-theory", "factorials"]

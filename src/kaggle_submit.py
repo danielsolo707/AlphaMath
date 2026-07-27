@@ -16,12 +16,14 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import sys
 import time
 from pathlib import Path
 from typing import Any
 
 from src.evaluate import build_agent_from_config
+from src.agent import MathAgent
 from src.utils import ensure_dir, load_config, project_root
 
 
@@ -97,6 +99,24 @@ def mock_test_rows() -> list[dict[str, Any]]:
     ]
 
 
+def detect_answer_column(test_path: Path | None, configured: str) -> str:
+    """Prefer the competition sample-submission schema when it is available."""
+    if test_path is None:
+        return configured
+    candidates = list(test_path.parent.glob("sample_submission*.csv"))
+    candidates.extend(test_path.parent.parent.glob("sample_submission*.csv"))
+    for candidate in candidates:
+        try:
+            with candidate.open(encoding="utf-8", newline="") as handle:
+                fieldnames = csv.DictReader(handle).fieldnames or []
+            values = [name for name in fieldnames if name.lower() not in {"id", "row_id", "problem_id"}]
+            if len(values) == 1:
+                return values[0]
+        except Exception:
+            continue
+    return configured
+
+
 def run_submission(
     config_path: str | Path | None = None,
     *,
@@ -106,6 +126,10 @@ def run_submission(
     limit: int | None = None,
     answer_column: str | None = None,
     allow_mock: bool = True,
+    agent: MathAgent | None = None,
+    trace_json: str | Path | None = None,
+    checkpoint_every: int = 1,
+    resume: bool = True,
 ) -> Path:
     cfg = load_config(config_path)
     cfg.setdefault("llm", {})
@@ -125,11 +149,14 @@ def run_submission(
     else:
         test_path = find_test_csv()
 
+    if answer_column is None:
+        ans_col = detect_answer_column(test_path, ans_col)
+
     submission_path = Path(out_csv or paths.get("submission_csv") or "submission.csv")
     ensure_dir(submission_path.parent)
 
     print("=" * 60)
-    print("ALPHA-MATH · Kaggle submission")
+    print("ALPHA-MATH - Kaggle submission")
     print(f"  model     : {cfg['llm'].get('model_path') or cfg['llm'].get('model')}")
     print(f"  backend   : {cfg['llm'].get('backend')}")
     print(f"  local_only: {cfg['llm'].get('local_files_only')}")
@@ -138,7 +165,8 @@ def run_submission(
     print(f"  column    : id,{ans_col}")
     print("=" * 60)
 
-    agent = build_agent_from_config(cfg)
+    if agent is None:
+        agent = build_agent_from_config(cfg)
 
     if test_path and test_path.exists():
         rows = load_test_csv(test_path)
@@ -157,23 +185,79 @@ def run_submission(
     if limit:
         rows = rows[:limit]
 
-    results: list[dict[str, Any]] = []
+    result_by_id: dict[str, dict[str, Any]] = {}
+    trace_by_id: dict[str, dict[str, Any]] = {}
+    if resume and submission_path.exists():
+        try:
+            with submission_path.open(encoding="utf-8", newline="") as handle:
+                for existing in csv.DictReader(handle):
+                    if "id" in existing and ans_col in existing:
+                        result_by_id[str(existing["id"])] = {
+                            "id": existing["id"],
+                            ans_col: int(existing[ans_col]),
+                        }
+            if trace_json and Path(trace_json).exists():
+                payload = json.loads(Path(trace_json).read_text(encoding="utf-8"))
+                trace_by_id = {str(item["id"]): item for item in payload.get("rows", [])}
+            if result_by_id:
+                print(f"Resume: found {len(result_by_id)} completed predictions.")
+        except Exception as exc:
+            print(f"Resume checkpoint ignored ({type(exc).__name__}: {exc}).")
+            result_by_id.clear()
+            trace_by_id.clear()
     t0 = time.perf_counter()
     for i, row in enumerate(rows, 1):
+        row_id = str(row["id"])
+        if row_id in result_by_id:
+            print(f"[{i:03d}/{len(rows)}] id={row_id} resumed")
+            continue
         t_item = time.perf_counter()
         result = agent.solve(row["problem"])
         ans = result.answer if result.answer is not None else 0
         elapsed = time.perf_counter() - t_item
         print(f"[{i:03d}/{len(rows)}] id={row['id']} {ans_col}={ans}  ({elapsed:.1f}s)")
-        results.append({"id": row["id"], ans_col: int(ans)})
+        result_by_id[row_id] = {"id": row["id"], ans_col: int(ans)}
+        trace_by_id[row_id] = {
+                "id": row["id"],
+                "prediction": int(ans),
+                "elapsed_s": round(elapsed, 3),
+                "success": result.success,
+                "meta": result.meta,
+                "attempts": result.to_dict()["attempts"],
+            }
+        if checkpoint_every > 0 and i % checkpoint_every == 0:
+            completed_results = [result_by_id[str(item["id"])] for item in rows if str(item["id"]) in result_by_id]
+            completed_traces = [trace_by_id[str(item["id"])] for item in rows if str(item["id"]) in trace_by_id]
+            _write_submission_csv(submission_path, completed_results, ans_col)
+            if trace_json:
+                ensure_dir(Path(trace_json).parent)
+                Path(trace_json).write_text(
+                    json.dumps({"completed": len(completed_results), "total": len(rows), "rows": completed_traces}, indent=2),
+                    encoding="utf-8",
+                )
 
-    with open(submission_path, "w", encoding="utf-8", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=["id", ans_col])
-        writer.writeheader()
-        writer.writerows(results)
+    results = [result_by_id[str(item["id"])] for item in rows if str(item["id"]) in result_by_id]
+    traces = [trace_by_id[str(item["id"])] for item in rows if str(item["id"]) in trace_by_id]
+    _write_submission_csv(submission_path, results, ans_col)
+    if trace_json:
+        Path(trace_json).write_text(
+            json.dumps({"completed": len(rows), "total": len(rows), "rows": traces}, indent=2),
+            encoding="utf-8",
+        )
 
-    print(f"Done in {time.perf_counter() - t0:.1f}s → {submission_path}")
+    print(f"Done in {time.perf_counter() - t0:.1f}s -> {submission_path}")
     return submission_path
+
+
+def _write_submission_csv(path: Path, rows: list[dict[str, Any]], answer_column: str) -> None:
+    """Atomically checkpoint a valid submission after completed rows."""
+    ensure_dir(path.parent)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    with open(temporary, "w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["id", answer_column])
+        writer.writeheader()
+        writer.writerows(rows)
+    temporary.replace(path)
 
 
 def main(argv: list[str] | None = None) -> int:

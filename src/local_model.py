@@ -92,7 +92,7 @@ class TransformersMathLLM(BaseLLM):
         except ImportError as e:  # pragma: no cover
             raise ImportError(
                 "transformers (+ torch) required for the local math model backend.\n"
-                "  pip install -r requirements-gpu.txt"
+                "  pip install -r requirements/gpu.txt"
             ) from e
 
         self.model_id = resolve_model_path(model, model_path)
@@ -100,6 +100,7 @@ class TransformersMathLLM(BaseLLM):
         self.max_new_tokens = max_new_tokens
         self.local_files_only = local_files_only
         self._torch = torch
+        self.generation_count = 0
 
         log.info(
             "Loading math model %s (4bit=%s, local_only=%s, cuda=%s)",
@@ -171,7 +172,7 @@ class TransformersMathLLM(BaseLLM):
         if system:
             user = f"{system.strip()}\n\n{user}"
         if assistant_parts:
-            hist = ""
+            hist = f"System: {system}\n\n" if system else ""
             for m in messages:
                 if m["role"] == "user":
                     hist += f"User: {m['content']}\n\n"
@@ -186,6 +187,10 @@ class TransformersMathLLM(BaseLLM):
         temperature = float(kwargs.get("temperature", 0.7))
         max_new = int(kwargs.get("max_tokens", self.max_new_tokens))
         top_p = float(kwargs.get("top_p", 0.9))
+        seed = int(kwargs.get("seed", 2026))
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
 
         inputs = self.tokenizer(prompt, return_tensors="pt")
         inputs = {k: v.to(self.device) for k, v in inputs.items()}
@@ -208,6 +213,7 @@ class TransformersMathLLM(BaseLLM):
 
         with torch.inference_mode():
             out = self.model.generate(**inputs, **gen_kwargs)
+        self.generation_count += 1
 
         new_tokens = out[0][input_len:]
         text = self.tokenizer.decode(new_tokens, skip_special_tokens=True).strip()
@@ -215,7 +221,13 @@ class TransformersMathLLM(BaseLLM):
             text=text,
             model=str(self.display_name),
             backend="transformers",
-            raw={"prompt_chars": len(prompt), "new_tokens": int(new_tokens.shape[0])},
+            raw={
+                "prompt_chars": len(prompt),
+                "new_tokens": int(new_tokens.shape[0]),
+                "seed": seed,
+                "generation_index": self.generation_count,
+                "device": str(self.device),
+            },
         )
 
 
@@ -229,6 +241,6 @@ def build_transformers_llm(llm_cfg: dict[str, Any]) -> TransformersMathLLM:
         torch_dtype=str(llm_cfg.get("torch_dtype") or "float16"),
         device_map=llm_cfg.get("device_map", "auto"),
         max_new_tokens=int(llm_cfg.get("max_new_tokens") or llm_cfg.get("max_tokens") or 1024),
-        trust_remote_code=bool(llm_cfg.get("trust_remote_code", True)),
+        trust_remote_code=bool(llm_cfg.get("trust_remote_code", False)),
         revision=llm_cfg.get("revision"),
     )

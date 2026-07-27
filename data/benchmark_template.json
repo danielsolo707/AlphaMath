@@ -1,0 +1,10 @@
+[
+  {
+    "id": "replace-me-001",
+    "source": "licensed-benchmark-name-and-version",
+    "difficulty": "unknown",
+    "problem": "Replace this record with a licensed held-out problem.",
+    "answer": 0,
+    "tags": ["unknown"]
+  }
+]

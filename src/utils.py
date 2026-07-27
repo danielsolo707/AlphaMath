@@ -21,13 +21,39 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     cfg_path = Path(path) if path else ROOT / "configs" / "default.yaml"
     with open(cfg_path, encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
+    if not isinstance(cfg, dict):
+        raise ValueError(f"Config must be a YAML mapping: {cfg_path}")
     # Resolve relative paths against repo root
     paths = cfg.get("paths", {})
     for key, val in list(paths.items()):
         if val and not Path(val).is_absolute():
             paths[key] = str((ROOT / val).resolve())
     cfg["paths"] = paths
+    validate_config(cfg)
     return cfg
+
+
+def validate_config(cfg: dict[str, Any]) -> None:
+    """Reject ambiguous or dangerous experiment settings before model loading."""
+    answer_min = int(cfg.get("answer_min", 0))
+    answer_max = int(cfg.get("answer_max", 999))
+    if answer_min > answer_max:
+        raise ValueError("answer_min must be <= answer_max")
+    agent = cfg.get("agent", {}) or {}
+    corrections = int(agent.get("max_corrections", agent.get("max_attempts", 2)))
+    if corrections < 0:
+        raise ValueError("agent.max_corrections must be >= 0")
+    if int(agent.get("majority_vote_k", 3)) < 1:
+        raise ValueError("agent.majority_vote_k must be >= 1")
+    if agent.get("time_budget_seconds") is not None and float(agent["time_budget_seconds"]) <= 0:
+        raise ValueError("agent.time_budget_seconds must be positive")
+    sandbox = cfg.get("sandbox", {}) or {}
+    if float(sandbox.get("timeout_seconds", 5)) <= 0:
+        raise ValueError("sandbox.timeout_seconds must be positive")
+    if int(sandbox.get("max_output_chars", 8000)) < 256:
+        raise ValueError("sandbox.max_output_chars must be >= 256")
+    if int(sandbox.get("max_source_chars", 50000)) < 1000:
+        raise ValueError("sandbox.max_source_chars must be >= 1000")
 
 
 def load_problems(path: str | Path) -> list[dict[str, Any]]:

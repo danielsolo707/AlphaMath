@@ -1,351 +1,288 @@
 # ALPHA-MATH
 
-**Open-weight math agent for AIMO-style olympiad problems**
+**An offline, tool-integrated math reasoning agent with stateful repair, hard process isolation, reproducible sampling, and auditable evaluation.**
 
-A **System-2** solver: a math-specialized language model **writes Python**, a **sandbox executes** it, failed attempts **self-repair**, and several independent samples take a **majority vote**. Built for the [AI Mathematical Olympiad — Progress Prize 3](https://www.kaggle.com/competitions/ai-mathematical-olympiad-progress-prize-3) setting: **Kaggle GPU, no external APIs, no internet at inference.**
+ALPHA-MATH targets integer-answer olympiad problems under Kaggle-style constraints:
+local open weights, one GPU, no external LLM API, and no network at inference.
+Qwen2.5-Math generates an exact Python/SymPy program; a restricted worker executes
+it; failed programs receive their original problem, previous code, stdout, and
+error for correction; independent successful answers are aggregated by strict
+majority.
 
-The real experiment lives on Kaggle  
-([`danielsolo1770/alpha-math`](https://www.kaggle.com/code/danielsolo1770/alpha-math)); this repo packages that pipeline as clean modules, CLIs, configs, and docs — not a notebook dump.
+> **Evidence status:** engineering is covered by automated regression tests.
+> A **real** Qwen2.5-Math-7B Kaggle run is frozen at
+> [`results/kaggle_runs/v1_real_qwen_sample10/`](./results/kaggle_runs/v1_real_qwen_sample10/)
+> — **90% (9/10)** on the bundled 10-problem sanity set (not a public leaderboard).
+> Mock accuracy is never presented as model intelligence.
 
-| | |
-|---|---|
-| **Math model (published run)** | **Qwen2.5-Math-7B** (Kaggle Model: `urvishp80/qwen-2.5-math-7b`) |
-| **Inference** | Hugging Face Transformers · `float16` · `device_map=auto` |
-| **Loop** | Generate code → execute → repair (×2) → majority of 3 samples |
-| **Tools** | Restricted Python + SymPy sandbox |
-| **Hardware** | Nvidia Tesla T4 (Kaggle) |
-| **Competition** | Offline notebook · `local_files_only=True` |
-| **Stack** | PyTorch · Transformers · SymPy · Accelerate |
+## Why this is more than a notebook wrapper
 
----
+- **Stateful self-repair:** correction turns retain the original problem, prior
+  model response, captured stdout, and execution error.
+- **Killable sandbox workers:** every program runs in a fresh process with a real
+  wall-clock timeout, AST policy, output/source caps, and a Unix memory limit.
+- **Deterministic experiment identity:** seeds are derived per vote and correction;
+  config, package versions, GPU details, Git commit, and dataset path are recorded.
+- **No silent demo fallback:** a Transformers run fails loudly if weights or GPU
+  dependencies are unavailable. Mock mode must be selected explicitly.
+- **Checkpointed competition inference:** a valid partial submission and complete
+  trace are written after each problem.
+- **Ablation-ready:** one flag compares pass1, repair, and repair+majority voting
+  using the same model, data, sandbox, and seed policy.
+- **Portfolio-grade artifacts:** each evaluation creates JSON traces, a flat CSV,
+  a Markdown report, and a downloadable evidence ZIP.
 
-## What is this project? (beginner-friendly)
+## Runtime architecture
 
-Hard contest math problems often need **exact** answers (integers), not fuzzy chat.
-
-1. **The model** (Qwen2.5-Math) reads the problem and emits a short **Python program**, usually using **SymPy** for exact algebra/number theory.
-2. **The sandbox** runs that program with a time limit and without dangerous OS access.
-3. If the code crashes or prints nothing useful, we **show the error back to the model** and ask it to fix the script (self-correction).
-4. We do this for **several independent samples** and take the **most common integer** (self-consistency / majority vote).
-
-That combination is sometimes called a **tool-integrated** or **System-2** math agent: language model for strategy, code execution for precision.
-
+```mermaid
+flowchart LR
+    P["Olympiad problem"] --> M["Qwen2.5-Math-7B"]
+    M --> C["Generated Python / SymPy"]
+    C --> S["Killable sandbox process"]
+    S -->|"integer"| V["Vote collector"]
+    S -->|"error + stdout"| R["Stateful correction turn"]
+    R --> M
+    V -->|"strict majority"| A["Final answer"]
+    A --> E["JSON + CSV + Markdown + manifest"]
 ```
-Problem
-   │
-   ▼
-Qwen2.5-Math-7B   (local weights, Kaggle GPU)
-   │  ```python ... print(answer)```
-   ▼
-Sandbox  (math · sympy · timeout · no OS / network)
-   │
-   ▼
-integer  →  retry on failure  →  majority vote (k=3)
-   │
-   ▼
-submission.csv   (id, prediction)
-```
 
-No OpenAI / Anthropic keys. No outbound HTTP during scoring.
+Each of `k` vote rounds performs one initial generation and at most
+`max_corrections` repairs. A strict majority ends sampling early because the
+result can no longer be overturned. Failed samples do not become votes, and all
+fallbacks/ties/timeouts remain visible in the report.
 
----
+## Current validation
 
-## Problem formulation
+| Evidence | Status | What it proves |
+|---|---:|---|
+| Regression suite | **17/17 passing locally** | repair context, attempt semantics, seeds, voting, parser, reports, resume, import policy, output cap, hard timeout |
+| CPU mock integration | Available | module/config/sandbox plumbing only |
+| **Real Qwen labeled run (Kaggle T4)** | **Done — frozen** | end-to-end offline inference + agent loop on open weights |
+| Headline accuracy | **90% (9/10)** | on **bundled sanity** problems only (`data/sample_problems.json`) |
+| Artifact path | [`results/kaggle_runs/v1_real_qwen_sample10/`](./results/kaggle_runs/v1_real_qwen_sample10/) | `run_manifest.json`, evaluation JSON/CSV/MD, preflight, tests log |
+| Hardware / load | Tesla T4 · Transformers · **4-bit** | matches Kaggle portfolio demo constraints |
+| Repair/vote ablation | Optional (`RUN_ABLATION=True`) | mechanism contribution (not in this freeze) |
+| Public leaderboard score | **Not claimed** | 10 demos ≠ AIMO LB |
 
-| Item | Detail |
-|------|--------|
-| **Task** | Given a natural-language contest problem, predict a single **integer** answer |
-| **Competition** | AIMO Progress Prize 3 (Kaggle) |
-| **Constraints** | Offline GPU notebook; no proprietary APIs at submit time |
-| **Evaluation (competition)** | Match hidden integer labels (leaderboard) |
-| **Evaluation (this repo)** | Labeled demo problems + modular agent smoke tests |
-
-This repository does **not** claim a public medal or fabricated LB score. It ships the **agent architecture** that was run on Kaggle, plus honest local demos.
-
----
-
-## Dataset / approach
-
-### Competition data
-
-- Source: [AIMO Progress Prize 3](https://www.kaggle.com/competitions/ai-mathematical-olympiad-progress-prize-3) (`test.csv` with problem text + id).
-- The notebook auto-discovers `test.csv` under `/kaggle/input` (skipping model folders).
-- If no test file is attached (e.g. competition locked), the runner can fall back to **mock problems** so the pipeline still exercises end-to-end.
-
-### Model choice
-
-| Field | Published Kaggle value |
-|-------|------------------------|
-| Weights | Qwen2.5-Math-7B via Kaggle Model mirror |
-| Path | `/kaggle/input/models/urvishp80/qwen-2.5-math-7b/transformers/default/1` |
-| Load | `AutoTokenizer` + `AutoModelForCausalLM`, `float16`, `local_files_only=True` |
-| Hub default (local) | `Qwen/Qwen2.5-Math-7B-Instruct` |
-
-**Why not only chat?** Generic chat models are weak on contest precision. Math-specialized open models + **executable code** catch arithmetic and algebra mistakes the raw token stream would miss.
-
-**Alternatives** (same backend): `deepseek-ai/deepseek-math-7b-instruct`, other chat-tuned math 7Bs with a chat template.
-
-### Demo problems (portfolio)
-
-[`data/sample_problems.json`](./data/sample_problems.json) — 10 original easy/medium integer problems for the **mock** backend (tool-loop unit tests). Perfect scores there measure plumbing, **not** olympiad intelligence.
-
----
-
-## Architecture
-
-| Module | Role |
-|--------|------|
-| [`src/local_model.py`](./src/local_model.py) | Transformers load + generate (`apply_chat_template`) |
-| [`src/llm.py`](./src/llm.py) | Backend factory (`transformers` / `mock` / optional APIs) |
-| [`src/prompts.py`](./src/prompts.py) | Strict “Python generator” system prompt (Kaggle-aligned) |
-| [`src/agent.py`](./src/agent.py) | Generate → execute → repair → majority vote |
-| [`src/sandbox.py`](./src/sandbox.py) | AST-gated execution + timeout (safer than raw `exec`) |
-| [`src/kaggle_submit.py`](./src/kaggle_submit.py) | Discover test CSV, write `submission.csv` |
-| [`src/evaluate.py`](./src/evaluate.py) | Batch accuracy on labeled JSON |
-| [`src/solve.py`](./src/solve.py) | Single-problem CLI |
-
-### Agent hyperparameters (published Kaggle recipe)
-
-| Param | Value | Notebook name |
-|-------|------:|---------------|
-| Independent samples | **3** | `num_generations` |
-| Self-repairs per sample | **2** | `max_correction_attempts` |
-| Temperature | **0.7** | `temperature` |
-| Top-p | **0.9** | `top_p` |
-| Max new tokens | **1024** | `max_new_tokens` |
-| Fail-safe answer | **0** | all paths failed |
-
-Configs: [`configs/default.yaml`](./configs/default.yaml) · [`configs/kaggle.yaml`](./configs/kaggle.yaml) · [`configs/smoke_mock.yaml`](./configs/smoke_mock.yaml)
-
-### Sandbox design note
-
-The Kaggle notebook used **multiprocessing + unrestricted `exec`**. This repo keeps the same **timeout + integer parse + retry** behavior but adds:
-
-- AST bans on `import` / `open` / `os` / `subprocess` / dunder tricks  
-- Preloaded `math`, `sympy` (`sp`), etc., with import-line rewriting for model-emitted `import sympy`  
-
-Safer for demos; still **not** a multi-tenant security boundary.
-
----
-
-## Training recipe & results
-
-### What actually ran on Kaggle
-
-**Inference only** — no LoRA / full fine-tune in the published kernel.
-
-| Item | Value |
-|------|------:|
-| Kernel | [`danielsolo1770/alpha-math`](https://www.kaggle.com/code/danielsolo1770/alpha-math) (v3) |
-| GPU | Tesla T4 |
-| Model | Qwen2.5-Math-7B (float16) |
-| Loop | code gen + repair + majority vote (table above) |
-| Submission format | `id,prediction` |
-| Custom trained weights in repo | **No** |
-
-Machine-readable summary: [`results/pipeline_summary.json`](./results/pipeline_summary.json)
-
-Optional future specialization (QLoRA on tool traces) is documented in [`docs/TRAINING.md`](./docs/TRAINING.md) — **scaffold only**, not claimed as shipped weights.
-
-### Local CPU smoke (tool loop)
-
-```bash
-python scripts/run_eval.py --config configs/smoke_mock.yaml
-```
+### Real-run snapshot (honest)
 
 | Metric | Value |
 |--------|------:|
-| Backend | `mock` (template solver) |
-| Demo set | 10 problems in `data/sample_problems.json` |
-| Expected | **10/10** on mock templates |
-| Artifact | [`results/sample_eval.json`](./results/sample_eval.json) |
+| Correct | 9 / 10 |
+| Accuracy | **90.00%** |
+| Execution success | 90.00% |
+| Mean vote agreement | 96.30% |
+| Avg latency | ~84 s / problem |
+| Failed id | `demo_10` (default answer 0 after code errors) |
 
-> **Interview note:** mock 10/10 proves the agent/sandbox wiring. Real olympiad skill needs the Qwen (or DeepSeek-Math) weights on GPU.
+Read the freeze notes: [`results/kaggle_runs/v1_real_qwen_sample10/NOTES.md`](./results/kaggle_runs/v1_real_qwen_sample10/NOTES.md).
 
----
-
-## Repository layout
-
-```
-AlphaMath/
-├── configs/
-│   ├── default.yaml              # Qwen2.5-Math + tool loop
-│   ├── kaggle.yaml               # offline competition profile
-│   └── smoke_mock.yaml           # CPU pipeline test (no GPU)
-├── data/sample_problems.json
-├── docs/
-│   ├── KAGGLE.md                 # offline runbook
-│   ├── DESIGN.md                 # architecture + honesty
-│   └── TRAINING.md               # optional specialization notes
-├── notebooks/
-│   └── kaggle_aimo_deepseek_math.ipynb   # thin Kaggle driver
-├── scripts/
-│   ├── download_math_model.py    # Hub → local weights (Qwen default)
-│   ├── download_deepseek_math.py # alternate weights helper
-│   ├── run_eval.py
-│   └── run_solve.py
-├── src/
-│   ├── local_model.py
-│   ├── llm.py
-│   ├── agent.py
-│   ├── sandbox.py
-│   ├── kaggle_submit.py
-│   ├── evaluate.py
-│   ├── solve.py
-│   └── prompts.py
-├── results/
-│   ├── pipeline_summary.json
-│   └── sample_eval.json
-├── requirements.txt
-└── requirements-gpu.txt
-```
-
----
-
-## Setup
+Run the local regression suite without pytest:
 
 ```bash
-git clone https://github.com/danielsolo707/AlphaMath.git
-cd AlphaMath
+python -m unittest discover -s tests -v
+```
+
+After installing core dependencies, run the explicit mock integration test:
+
+```bash
+python scripts/run_eval.py \
+  --config configs/smoke_mock.yaml \
+  --preflight \
+  --artifacts-dir results/smoke_run \
+  --zip-artifacts
+```
+
+The generated report labels itself **MOCK PIPELINE TEST — NOT MODEL QUALITY**.
+
+## Quick start
+
+### Lightweight CPU tooling
+
+```bash
 python -m venv .venv
 # Windows: .venv\Scripts\activate
-# Linux:   source .venv/bin/activate
-
-# CPU agent plumbing (mock eval works):
-pip install -r requirements.txt
-
-# Full GPU stack (Linux + CUDA recommended for 7B float16 / 4-bit):
-pip install -r requirements-gpu.txt
-```
-
-### Download math weights (once, needs network)
-
-```bash
-python scripts/download_math_model.py
-# → models/qwen2.5-math-7b-instruct/
-
-# Alternate:
-python scripts/download_deepseek_math.py
-```
-
-Then run fully offline:
-
-```bash
-python scripts/run_eval.py --model-path models/qwen2.5-math-7b-instruct --limit 3
-python scripts/run_solve.py --model-path models/qwen2.5-math-7b-instruct \
-  -p "What is gcd(252, 105)?"
-```
-
----
-
-## Usage
-
-### CPU smoke test (no model download)
-
-```bash
+# Linux/macOS: source .venv/bin/activate
+pip install -r requirements/core.txt
+python scripts/run_preflight.py --config configs/smoke_mock.yaml
 python scripts/run_eval.py --config configs/smoke_mock.yaml
-# → 10/10 on bundled demos (mock templates, not Qwen)
 ```
 
-### Solve one problem
+### Real local model
 
 ```bash
-python scripts/run_solve.py --config configs/smoke_mock.yaml \
+pip install -r requirements/gpu.txt
+python scripts/download_math_model.py
+python scripts/run_preflight.py --config configs/default.yaml
+python scripts/run_solve.py \
+  --config configs/default.yaml \
+  --model-path models/qwen2.5-math-7b-instruct \
   -p "What is gcd(252, 105)?"
 ```
 
-### Kaggle submission (AIMO)
+For NF4/8-bit loading on Linux, install `requirements/quantization.txt` and set
+`llm.load_in_4bit: true`.
 
-1. Attach competition data + **Qwen2.5-Math** weights as Model/Dataset.  
-2. Open [`notebooks/kaggle_aimo_deepseek_math.ipynb`](./notebooks/kaggle_aimo_deepseek_math.ipynb).  
-3. Point `MODEL_PATH` at the folder containing `config.json` (auto-detects the published path when present).  
-4. **GPU on · Internet off** · Run All → `/kaggle/working/submission.csv`.
+## Kaggle: code upload to final evidence ZIP
 
-Details: [`docs/KAGGLE.md`](./docs/KAGGLE.md) · config: [`configs/kaggle.yaml`](./configs/kaggle.yaml)
+This repository includes a generated upload package and an auditable notebook:
 
-```python
-from src.kaggle_submit import run_submission
-run_submission(
-    config_path="configs/kaggle.yaml",
-    test_csv="/kaggle/input/ai-mathematical-olympiad-progress-prize-3/test.csv",
-    out_csv="/kaggle/working/submission.csv",
-    model_path="/kaggle/input/models/urvishp80/qwen-2.5-math-7b/transformers/default/1",
-)
+- `kaggle/AlphaMath_Kaggle_Upload_Package.zip` — final package to extract locally
+- `kaggle/AlphaMath_Kaggle_Bundle.zip` — attach this inner ZIP as a Kaggle Dataset/Input
+- `notebooks/alphamath_portfolio_kaggle.ipynb` — run cells in order
+- `kaggle/README_FIRST.md` — short upload checklist
+- `kaggle/runtime_dataset/` — private Dataset payload for the Kaggle CLI
+- `kaggle/kernel/` — private GPU Kernel entrypoint and metadata
+
+Build or refresh the code archive locally:
+
+```bash
+python scripts/build_kaggle_bundle.py
 ```
 
-| Kaggle knob | Default | Role |
-|-------------|---------|------|
-| `llm.model_path` | attached Qwen folder | Offline weights |
-| `llm.local_files_only` | `true` | No Hub calls |
-| `llm.torch_dtype` | `float16` | Match notebook load |
-| `agent.majority_vote_k` | `3` | Self-consistency |
-| `agent.max_attempts` | `2` | Sandbox self-repair |
-| `agent.temperature` | `0.7` | Sample diversity |
-| `paths.answer_column` | `prediction` | Notebook CSV column |
+Extract the outer upload package once. Import its `.ipynb` through Kaggle's
+notebook UI, then attach the inner code ZIP/Dataset and Qwen weights. For
+meaningful accuracy, also
+attach a labeled JSON, JSONL, or CSV benchmark with a problem/question column and
+an answer/gold column. The notebook auto-discovers inputs but exposes exact path
+overrides in its first code cell.
 
-If the grader requires `answer` instead of `prediction`, set `paths.answer_column: answer`.
+For an automated run, the bundle builder also refreshes the ignored ZIP inside
+`kaggle/runtime_dataset/`; the matching private script in `kaggle/kernel/`
+runs regression tests, discovers attached offline weights, and produces the same
+artifact contract. Exact CLI commands and update behavior are documented in
+`docs/KAGGLE.md`.
 
----
+The final cell creates:
 
-## Design notes / limitations / next steps
+```text
+/kaggle/working/alphamath_artifacts.zip
+```
 
-### Design notes
+That archive contains:
 
-- **Tool loop > pure CoT** for integer olympiad answers: one arithmetic slip ruins a free-form chain of thought; the sandbox catches many of them.  
-- **Majority vote** trades GPU time for robustness when the model is stochastic (`temperature=0.7`).  
-- **Strict code-only prompt** (from the Kaggle notebook) reduces rambling and makes parsing reliable.  
-- **Modular backends** keep Kaggle offline while still allowing optional cloud LLMs for research.
+```text
+FINAL_REPORT.md
+run_manifest.json
+preflight.json
+evaluation/
+  REPORT.md
+  evaluation.json
+  per_problem.csv
+  run_manifest.json
+ablation/                 # when RUN_ABLATION=True
+  ABLATION.md
+  ablation.csv
+submission.csv            # when competition test.csv is attached
+submission_trace.json
+```
 
-### Limitations
+Only copy a metric into a public README when its `run_manifest.json` says
+`backend=transformers` and identifies a labeled dataset. The bundled ten problems
+are a sanity set, not an olympiad benchmark.
 
-- 7B float16 is near the edge of a 16GB T4; long contexts or large vote-`k` can OOM — enable `load_in_4bit: true` if needed.  
-- AST sandbox is not a full security boundary.  
-- No public LB score is claimed; competition test labels are hidden.  
-- Mock eval ≠ model quality.  
-- Optional QLoRA specialization is **not** implemented end-to-end in this repo.
+## Reproducible evaluation input
 
-### Next steps
+Accepted schemas:
 
-1. Run full `test.csv` offline with Qwen weights and log per-problem latency / vote agreement.  
-2. Try 4-bit load + higher `majority_vote_k` under the competition time budget.  
-3. Curate tool-use traces where sandbox output matches gold → QLoRA (see `docs/TRAINING.md`).  
-4. Add a small held-out integer set (AIME-style public problems) with real-model metrics for the README.
+```json
+[
+  {
+    "id": "example-001",
+    "problem": "Problem statement...",
+    "answer": 314,
+    "difficulty": "hard",
+    "tags": ["number-theory"],
+    "source": "licensed-benchmark-name"
+  }
+]
+```
 
----
+CSV aliases are supported: `problem|question|prompt|text` and
+`answer|gold|target|label`. Do not publish benchmark questions unless their
+license permits redistribution; the report can reference an attached dataset
+path without copying the source dataset into this repository.
 
-## Design honesty
+## Experiment design
 
-| Claim | Status |
-|-------|--------|
-| Uses open-weight **Qwen2.5-Math** on the competition path | Yes (Kaggle kernel + configs + notebook) |
-| Pipeline aligned with `danielsolo1770/alpha-math` | Yes (model, sampling, vote, retries, CSV column) |
-| Offline / no external API | Yes (`local_files_only`, local `model_path`) |
-| Tool loop + majority vote | Yes |
-| Safer sandbox than notebook `exec` | Yes (AST-gated) |
-| Weights stored in this git repo | **No** (download or attach on Kaggle) |
-| Guaranteed AIMO medal / public LB score | **Not claimed** |
-| Custom distilled student from 70B “logic surgery” | Research notes only (`docs/`) |
+The optional ablation holds model, dataset, sampling seed, sandbox, and answer
+normalization constant:
 
----
+| Variant | Initial generations | Corrections | Aggregation |
+|---|---:|---:|---|
+| `tool_pass1` | 1 | 0 | single answer |
+| `tool_repair` | 1 | 2 | single answer |
+| `tool_repair_vote` | up to 3 | 2 each | strict majority |
 
-## Competition context
+The report compares accuracy, execution success, average attempts, latency, vote
+agreement, and delta versus pass1. This tests whether additional inference compute
+actually adds value instead of assuming that it does.
 
-[AIMO Progress Prize 3](https://www.kaggle.com/competitions/ai-mathematical-olympiad-progress-prize-3)
-requires solving contest problems with **integer answers** under Kaggle’s
-compute rules. Strong open solutions pair a **math-specialized open model**
-with **code execution**. ALPHA-MATH is that stack, packaged for portfolio reuse
-and aligned with the author’s Kaggle notebook.
+## Sandbox threat model
 
----
+The worker:
 
-## Author
+- rejects imports in the final AST and rewrites only known math imports;
+- blocks dangerous builtins, dunder traversal, filesystem/process/network names,
+  and dynamic attribute helpers;
+- caps source and captured output;
+- kills the worker on timeout;
+- applies an address-space limit on supported Unix systems.
 
-**Daniel Soleimani** · [github.com/danielsolo707](https://github.com/danielsolo707)
+It is appropriate for trusted model-generated math code in a local/Kaggle
+pipeline. It is **not** a multi-tenant security boundary. A public service should
+add a networkless container or microVM plus OS/cgroup/seccomp controls.
 
----
+## Repository map
+
+```text
+AlphaMath/
+├── README.md                 # you are here
+├── LICENSE
+├── pyproject.toml
+├── requirements.txt          # → requirements/core.txt
+├── .env.example
+│
+├── requirements/             # core / dev / gpu / quantization
+├── configs/                  # default, kaggle, smoke_mock YAML
+├── data/                     # sample problems + templates
+├── models/                   # local weights (gitignored; see README)
+├── src/                      # agent, sandbox, eval, reporting
+├── scripts/                  # CLIs and Kaggle bundle builder
+├── tests/                    # regression suite
+├── notebooks/                # Kaggle portfolio notebook
+├── kaggle/                   # upload checklist, kernel, dataset helpers
+├── results/                  # summaries + frozen Kaggle runs
+│   └── kaggle_runs/v1_real_qwen_sample10/
+├── docs/                     # design, Kaggle, roadmap, changelog
+└── .github/                  # CI
+```
+
+## Honest limitations and next evidence
+
+- No custom fine-tuned weights are shipped; this project is **inference + agent
+  engineering**, not a claim that we trained the 7B model.
+- The frozen **90%** result uses **10 bundled demo problems** (`bundled_sanity`).
+  It is a **pipeline + model sanity check**, not an olympiad leaderboard score.
+- Weights on Kaggle were loaded from a public input dataset
+  (`mehedi457/qwen25-math-7b-instruct`); inference stayed offline / local files.
+- Dependency bootstrap on Kaggle may use network **once** to install packages
+  (e.g. bitsandbytes); it does **not** call external LLM APIs.
+- Python AST filtering is defense-in-depth, not perfect isolation.
+- The T4 profile loads the 7B checkpoint in **4-bit** to preserve VRAM; report
+  that together with accuracy.
+- Next upgrades: larger labeled benchmark, tool-vs-no-tool ablation, and (only if
+  earned) a competition submission score with full traces.
+
+## Portfolio summary
+
+> Built an offline tool-integrated math reasoning system using open-weight
+> Qwen2.5-Math-7B, killable restricted execution, stateful error-driven repair,
+> self-consistency voting, and auditable Kaggle evaluation — **90% on a 10-problem
+> real-GPU sanity set**, with full manifests (not a fabricated leaderboard claim).
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).  
-Qwen / DeepSeek-Math weights are subject to their own licenses on Hugging Face / Kaggle.  
-Bundled demo problems are original.
+Code is MIT licensed. Model weights and external benchmarks retain their own
+licenses. Bundled sanity problems are original and are not presented as a public
+benchmark.

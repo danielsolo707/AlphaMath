@@ -41,7 +41,7 @@ def main() -> int:
         print("pip install huggingface_hub", file=sys.stderr)
         return 1
 
-    print(f"Downloading {args.model} → {out}")
+    print(f"Downloading {args.model} -> {out}")
     path = snapshot_download(
         repo_id=args.model,
         local_dir=str(out),

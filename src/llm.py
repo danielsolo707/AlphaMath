@@ -43,10 +43,6 @@ class MockLLM(BaseLLM):
                 "ANSWER = pow(2, 10, 7)\nprint(ANSWER)",
             ),
             (
-                ["sum of the first 50"],
-                "n = 50\nANSWER = n * (n + 1) // 2\nprint(ANSWER)",
-            ),
-            (
                 ["sum of the first 40"],
                 "n = 40\nANSWER = n * (n + 1) // 2\nprint(ANSWER)",
             ),
@@ -67,8 +63,8 @@ class MockLLM(BaseLLM):
             ),
             (
                 ["n^2 + n - 56", "positive integer"],
-                "n = sp.symbols('n', integer=True, positive=True)\n"
-                "sols = sp.solve(n**2 + n - 56, n)\nANSWER = int(sols[0])\nprint(ANSWER)",
+                "sols = [n for n in range(1, 100) if n*n + n - 56 == 0]\n"
+                "ANSWER = sols[0]\nprint(ANSWER)",
             ),
             (
                 ["gcd(252", "105"],
@@ -76,7 +72,7 @@ class MockLLM(BaseLLM):
             ),
             (
                 ["coprime to 100", "phi(100)", "euler"],
-                "ANSWER = int(sp.totient(100))\nprint(ANSWER)",
+                "ANSWER = sum(1 for n in range(1, 101) if math.gcd(n, 100) == 1)\nprint(ANSWER)",
             ),
             (
                 ["sum_{k=1}^{10}", "k^2"],
@@ -201,7 +197,8 @@ def build_llm(cfg: dict[str, Any]) -> BaseLLM:
     base_url = llm_cfg.get("base_url")
     key_env = llm_cfg.get("api_key_env") or "OPENAI_API_KEY"
     api_key = os.getenv(key_env) if key_env else None
-    allow_mock_fallback = bool(llm_cfg.get("allow_mock_fallback", True))
+    # Real-model runs must never silently become template demos.
+    allow_mock_fallback = bool(llm_cfg.get("allow_mock_fallback", False))
 
     if backend in {"mock", "demo"}:
         return MockLLM()
