@@ -1,10 +1,10 @@
 """Pluggable LLM backends for code generation.
 
 Backends:
-  - transformers / deepseek_math / local  → open-weight math model (Kaggle / offline GPU)
-  - mock                                  → deterministic templates for CPU pipeline tests
-  - openai / openai_compatible            → optional cloud or local OpenAI-API servers
-  - anthropic                             → optional Claude API
+  - transformers / qwen_math / local  → open-weight math model (Kaggle / offline GPU)
+  - mock                              → deterministic templates for CPU pipeline tests
+  - openai / openai_compatible        → optional cloud or local OpenAI-API servers
+  - anthropic                         → optional Claude API
 """
 
 from __future__ import annotations
@@ -87,6 +87,20 @@ class MockLLM(BaseLLM):
                 "def trailing_zeros(n):\n    z = 0\n    while n:\n        n //= 5\n        z += n\n"
                 "    return z\nANSWER = trailing_zeros(100)\nprint(ANSWER)",
             ),
+            # Kaggle notebook mock problems
+            (
+                ["residue of 5^2026", "modulo 13"],
+                "ANSWER = pow(5, 2026, 13)\nprint(ANSWER)",
+            ),
+            (
+                ["f(x) = 2x + 3", "f(f(3))"],
+                "def f(x):\n    return 2 * x + 3\nANSWER = f(f(3))\nprint(ANSWER)",
+            ),
+            (
+                ["prime numbers", "between 10 and 30"],
+                "primes = [n for n in range(11, 30) if all(n % d for d in range(2, int(n**0.5)+1))]\n"
+                "ANSWER = len(primes)\nprint(ANSWER)",
+            ),
         ]
 
     def complete(self, messages: list[dict[str, str]], **kwargs: Any) -> LLMResponse:
@@ -95,15 +109,17 @@ class MockLLM(BaseLLM):
         for keys, code in self._templates:
             if all(k.lower() in problem for k in keys):
                 text = (
-                    "REASONING:\nMatched offline demo template for portfolio evaluation.\n\n"
-                    f"CODE:\n```python\n{code}\n```"
+                    "```python\n"
+                    f"{code}\n"
+                    "```"
                 )
                 return LLMResponse(text=text, model="mock-templates", backend="mock")
 
         text = (
-            "REASONING:\nNo offline template matched; emitting a failing stub so the "
-            "verifier can request a retry (use the DeepSeek-Math backend for open problems).\n\n"
-            "CODE:\n```python\nANSWER = None\nprint('NO_TEMPLATE')\n```"
+            "```python\n"
+            "ANSWER = None\n"
+            "print('NO_TEMPLATE')\n"
+            "```"
         )
         return LLMResponse(text=text, model="mock-templates", backend="mock")
 
@@ -180,7 +196,7 @@ class AnthropicLLM(BaseLLM):
 def build_llm(cfg: dict[str, Any]) -> BaseLLM:
     llm_cfg = dict(cfg.get("llm", {}) or {})
     backend = (llm_cfg.get("backend") or "transformers").lower()
-    model = llm_cfg.get("model") or "deepseek-ai/deepseek-math-7b-instruct"
+    model = llm_cfg.get("model") or "Qwen/Qwen2.5-Math-7B-Instruct"
     max_tokens = int(llm_cfg.get("max_tokens") or llm_cfg.get("max_new_tokens") or 1024)
     base_url = llm_cfg.get("base_url")
     key_env = llm_cfg.get("api_key_env") or "OPENAI_API_KEY"
@@ -194,6 +210,9 @@ def build_llm(cfg: dict[str, Any]) -> BaseLLM:
         "huggingface",
         "hf",
         "local",
+        "qwen",
+        "qwen_math",
+        "qwen-math",
         "deepseek",
         "deepseek_math",
         "deepseek-math",
@@ -209,9 +228,9 @@ def build_llm(cfg: dict[str, Any]) -> BaseLLM:
             import warnings
 
             warnings.warn(
-                f"DeepSeek-Math backend unavailable ({type(e).__name__}: {e}). "
+                f"Math model backend unavailable ({type(e).__name__}: {e}). "
                 "Falling back to mock templates for CPU smoke tests. "
-                "Download weights (scripts/download_deepseek_math.py) or set "
+                "Download weights (scripts/download_math_model.py) or set "
                 "--model-path for real math-model inference.",
                 RuntimeWarning,
                 stacklevel=2,

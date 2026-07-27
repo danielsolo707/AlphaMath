@@ -1,0 +1,49 @@
+{
+  "project": "ALPHA-MATH",
+  "kaggle_kernel": "danielsolo1770/alpha-math",
+  "kaggle_url": "https://www.kaggle.com/code/danielsolo1770/alpha-math",
+  "competition": "ai-mathematical-olympiad-progress-prize-3",
+  "kernel_version": 3,
+  "hardware": {
+    "accelerator": "NvidiaTeslaT4",
+    "enable_gpu": true,
+    "enable_internet_at_edit_time": true
+  },
+  "model": {
+    "family": "Qwen2.5-Math-7B",
+    "kaggle_model_source": "urvishp80/qwen-2.5-math-7b/Transformers/default/1",
+    "kaggle_path": "/kaggle/input/models/urvishp80/qwen-2.5-math-7b/transformers/default/1",
+    "hub_id_default": "Qwen/Qwen2.5-Math-7B-Instruct",
+    "load": {
+      "torch_dtype": "float16",
+      "device_map": "auto",
+      "local_files_only": true,
+      "load_in_4bit": false
+    }
+  },
+  "agent_loop": {
+    "num_generations": 3,
+    "max_correction_attempts": 2,
+    "temperature": 0.7,
+    "top_p": 0.9,
+    "max_new_tokens": 1024,
+    "default_answer_on_fail": 0,
+    "prompt_style": "strict_python_generator_sympy",
+    "sandbox": "code_execution_with_timeout"
+  },
+  "submission": {
+    "columns": ["id", "prediction"],
+    "notes": "Notebook wrote id,prediction. Switch paths.answer_column to answer if the grader requires it."
+  },
+  "local_cpu_smoke": {
+    "config": "configs/smoke_mock.yaml",
+    "metric": "tool_loop_accuracy_on_demo_problems",
+    "result_file": "results/sample_eval.json",
+    "disclaimer": "Mock templates only — not olympiad intelligence or LB score."
+  },
+  "honesty": {
+    "custom_finetune_in_kernel": false,
+    "public_leaderboard_score_claimed": false,
+    "repo_ships_weights": false
+  }
+}

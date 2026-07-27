@@ -1,25 +1,36 @@
-"""Prompt templates for DeepSeek-Math tool-integrated reasoning + SymPy code."""
+"""Prompt templates aligned with the published Kaggle ALPHA-MATH notebook.
+
+Kaggle kernel (danielsolo1770/alpha-math) uses a strict "Python generator" style:
+emit a single sympy script, no free-form natural-language solution dump.
+"""
 
 from __future__ import annotations
 
-SYSTEM_PROMPT = """You are ALPHA-MATH, built on a math-specialized open-weight language model
-(DeepSeek-Math style tool-integrated reasoning).
-
-Your job: solve olympiad / AIME-style problems where the final answer is an integer.
-
-Method (required):
-1. Write a short plan.
-2. Implement the plan as Python that the sandbox will execute.
-3. Use exact arithmetic (prefer sympy / integers). Avoid floats unless necessary.
-4. Libraries already available — do NOT import anything:
+# Matches the Kaggle notebook system prompt (tool-integrated math solving).
+SYSTEM_PROMPT = """You are a strict Mathematical Python Generator. Your ONLY job is to write a Python script using sympy to solve the user's problem.
+CRITICAL RULES:
+1. Do NOT explain the math in natural language.
+2. You MUST enclose your full Python code strictly inside a single ```python and ``` block.
+3. The script MUST end by printing only the final integer result.
+4. Prefer exact arithmetic (integers / sympy). Avoid floats unless necessary.
+5. Libraries already available in the sandbox — do NOT import os/sys/subprocess:
    math, sympy (as sympy or sp), itertools, functools, collections, fractions, decimal, numpy (np)
-5. Assign the final integer to ANSWER and print it.
+6. Optionally set ANSWER = <int> before printing it.
+"""
 
-Competition rule:
-- Final answers are non-negative integers. When a problem asks for the last three digits
-  or an AIME answer, report a value in 0..999.
+# Slightly richer prompt for portfolio / local demos (same tool loop).
+SYSTEM_PROMPT_VERBOSE = """You are ALPHA-MATH, a math-specialized open-weight model with a Python sandbox.
 
-Output format (exactly):
+Solve olympiad / AIME-style problems where the final answer is an integer.
+
+Method:
+1. Short plan (optional).
+2. Implement as Python that the sandbox will execute.
+3. Exact arithmetic (sympy / integers). Libraries preloaded — do not import os/sys.
+4. Assign ANSWER = <int> and print it.
+5. Competition answers are non-negative integers; AIME-style often wants last three digits (0..999).
+
+Output format:
 REASONING:
 <brief plan>
 
@@ -33,27 +44,24 @@ print(ANSWER)
 
 
 def build_user_prompt(problem: str, feedback: str | None = None) -> str:
-    parts = [
-        "Solve the following problem. Produce REASONING + executable CODE as specified.",
-        "",
-        "PROBLEM:",
-        problem.strip(),
-    ]
-    if feedback:
-        parts.extend(
-            [
-                "",
-                "PREVIOUS ATTEMPT FAILED. Feedback from the Python verifier:",
-                feedback.strip(),
-                "Fix the code or try a different correct method. Still set ANSWER and print it.",
-            ]
-        )
-    return "\n".join(parts)
+    """User turn — Kaggle style first attempt; feedback turns match notebook retries."""
+    if not feedback:
+        return f"Write a Python script using sympy to solve this problem: {problem.strip()}"
+    return (
+        f"The code failed with error:\n{feedback.strip()}\n"
+        "Fix it and output the entire code again inside ```python and ```."
+    )
 
 
-def build_messages(problem: str, feedback: str | None = None) -> list[dict[str, str]]:
+def build_messages(
+    problem: str,
+    feedback: str | None = None,
+    *,
+    verbose_system: bool = False,
+) -> list[dict[str, str]]:
+    system = SYSTEM_PROMPT_VERBOSE if verbose_system else SYSTEM_PROMPT
     return [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": system},
         {"role": "user", "content": build_user_prompt(problem, feedback)},
     ]
 

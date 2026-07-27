@@ -27,6 +27,10 @@ tmp/
 .mypy_cache/
 .ruff_cache/
 
+# Local scratch / pulled notebook dumps
+.tmp_kaggle/
+.ipynb_checkpoints/
+
 # Model weights / large downloads (not shipped — use download script or Kaggle input)
 models/
 checkpoints/
@@ -40,3 +44,5 @@ checkpoints/
 secrets/
 *.pem
 ngrok*
+*.token
+kaggle.json

@@ -8,8 +8,11 @@ answer_max: 999
 agent:
   max_attempts: 2
   temperature: 0.0
+  top_p: 1.0
   majority_vote_k: 1
   clamp_answer: false
+  verbose_prompts: false
+  default_answer_on_fail: null   # do not default to 0 during unit eval
 
 sandbox:
   timeout_seconds: 5
@@ -30,3 +33,4 @@ llm:
 paths:
   sample_problems: data/sample_problems.json
   results_dir: results
+  answer_column: prediction

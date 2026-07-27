@@ -2,7 +2,7 @@
   "total": 10,
   "correct": 10,
   "accuracy": 1.0,
-  "elapsed_s": 0.028,
+  "elapsed_s": 0.036,
   "backend": "mock",
   "model": "mock-templates",
   "per_problem": [
@@ -53,7 +53,7 @@
       "correct": true,
       "success": true,
       "attempts": 1,
-      "elapsed_s": 0.0,
+      "elapsed_s": 0.001,
       "model": "mock-templates",
       "backend": "mock",
       "votes": [
@@ -92,7 +92,7 @@
       "correct": true,
       "success": true,
       "attempts": 1,
-      "elapsed_s": 0.0,
+      "elapsed_s": 0.001,
       "model": "mock-templates",
       "backend": "mock",
       "votes": [
@@ -111,7 +111,7 @@
       "correct": true,
       "success": true,
       "attempts": 1,
-      "elapsed_s": 0.024,
+      "elapsed_s": 0.031,
       "model": "mock-templates",
       "backend": "mock",
       "votes": [
@@ -203,5 +203,5 @@
       "difficulty": "hard"
     }
   ],
-  "notes": "Competition path uses open-weight DeepSeek-Math-7B-Instruct via transformers (offline, Kaggle GPU, no external API). Use configs/smoke_mock.yaml for CPU pipeline tests without downloading weights."
+  "notes": "Competition path uses open-weight Qwen2.5-Math-7B via transformers (offline, Kaggle GPU, no external API) \u2014 aligned with kernel danielsolo1770/alpha-math. Use configs/smoke_mock.yaml for CPU pipeline tests without downloading weights."
 }

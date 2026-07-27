@@ -1,17 +1,34 @@
-# Training notes (research scaffold)
+# Training / specialization notes
 
-Phase 1–2 from the master plan (logic distillation + QLoRA) require substantial
-GPU time and curated datasets. This file records the intended recipe so the
-portfolio is complete as an architecture doc, without pretending weights exist.
+The **published Kaggle ALPHA-MATH run is inference-only**: it loads a public
+math-specialized 7B checkpoint and runs a System-2 tool loop. No LoRA or
+full fine-tune was trained in that notebook.
 
-## Intended stack
+This file records an optional **research specialization recipe** so the
+portfolio is complete as an architecture doc, without pretending custom
+weights exist.
+
+## What was run on Kaggle (actual)
+
+| Item | Value |
+|------|-------|
+| Kernel | [`danielsolo1770/alpha-math`](https://www.kaggle.com/code/danielsolo1770/alpha-math) |
+| Hardware | Nvidia Tesla T4 |
+| Model | Qwen2.5-Math-7B (Kaggle Model mirror) |
+| Training | **None** — offline inference + code execution |
+| Loop | generate code → execute → self-repair (×2) → majority of 3 |
+
+See [`results/pipeline_summary.json`](../results/pipeline_summary.json) and
+[`docs/KAGGLE.md`](./KAGGLE.md).
+
+## Optional specialization stack (not shipped)
 
 | Component | Choice |
 |-----------|--------|
-| Student | Llama-3 / Qwen2.5 class 7–8B instruct |
+| Student | Qwen2.5-Math / Llama-3 class 7–8B instruct |
 | Teacher | Stronger open reasoner (70B-class or math-specialized) |
 | PEFT | QLoRA (4-bit base, LoRA rank 16–64) |
-| Objective | Supervised fine-tune on (problem → reasoning + Python solution) |
+| Objective | Supervised fine-tune on (problem → sympy script) |
 | Libraries | `transformers`, `peft`, `bitsandbytes`, `trl` or `axolotl` |
 
 ## Data sources (examples)
@@ -24,17 +41,16 @@ portfolio is complete as an architecture doc, without pretending weights exist.
 
 ```
 <input>  olympiad problem statement
-<output> REASONING: ...
-         CODE:
-         ```python
-         ANSWER = ...
-         print(ANSWER)
-         ```
+<output>
+```python
+# exact sympy / integer solution
+print(<integer>)
+```
 ```
 
 Filter training rows where sandbox execution yields the gold integer answer.
 
-## Local inference after training
+## Local inference after (optional) training
 
 Serve the adapter with vLLM or Ollama (GGUF), then point ALPHA-MATH at it:
 
@@ -52,7 +68,7 @@ export LLM_API_KEY=not-needed
 python scripts/run_eval.py --backend openai --config configs/local_vllm.yaml
 ```
 
-## What is intentionally out of scope here
+## Intentionally out of scope in this repo
 
 - Shipping multi-GB checkpoints in git  
 - Claiming AIMO medal scores without a public submission  

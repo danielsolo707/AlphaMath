@@ -1,4 +1,11 @@
-"""ALPHA-MATH agent: DeepSeek-Math plans → sandbox executes → verify → retry / vote."""
+"""ALPHA-MATH agent: math LLM plans → sandbox executes → verify → retry / majority vote.
+
+Behavior mirrors the published Kaggle kernel (danielsolo1770/alpha-math):
+  - num_generations independent samples (majority_vote_k)
+  - max_correction_attempts sandbox self-repairs per sample (max_attempts)
+  - temperature / top_p sampling for diversity
+  - integer answer extraction from executed code output
+"""
 
 from __future__ import annotations
 
@@ -63,24 +70,31 @@ class MathAgent:
         self,
         llm: BaseLLM,
         *,
-        max_attempts: int = 3,
-        temperature: float = 0.2,
+        max_attempts: int = 2,
+        temperature: float = 0.7,
+        top_p: float = 0.9,
         sandbox_timeout: float = 5.0,
         allowed_modules: list[str] | None = None,
         answer_min: int = 0,
         answer_max: int = 999,
         clamp_answer: bool = True,
-        majority_vote_k: int = 1,
+        majority_vote_k: int = 3,
+        verbose_prompts: bool = False,
+        default_answer_on_fail: int | None = 0,
     ) -> None:
         self.llm = llm
         self.max_attempts = max_attempts
         self.temperature = temperature
+        self.top_p = top_p
         self.sandbox_timeout = sandbox_timeout
         self.allowed_modules = allowed_modules
         self.answer_min = answer_min
         self.answer_max = answer_max
         self.clamp_answer = clamp_answer
         self.majority_vote_k = max(1, int(majority_vote_k))
+        self.verbose_prompts = verbose_prompts
+        # Kaggle notebook returns 0 when every sample fails (format-safe).
+        self.default_answer_on_fail = default_answer_on_fail
 
     def _normalize(self, answer: int | None) -> int | None:
         if answer is None:
@@ -97,8 +111,14 @@ class MathAgent:
     def _one_pass(
         self, problem: str, feedback: str | None, vote_round: int, index: int
     ) -> tuple[Attempt, LLMResponse]:
-        messages = build_messages(problem, feedback)
-        resp: LLMResponse = self.llm.complete(messages, temperature=self.temperature)
+        messages = build_messages(
+            problem, feedback, verbose_system=self.verbose_prompts
+        )
+        resp: LLMResponse = self.llm.complete(
+            messages,
+            temperature=self.temperature,
+            top_p=self.top_p,
+        )
         code = extract_code_block(resp.text)
         sandbox: SandboxResult | None = None
         answer: int | None = None
@@ -106,8 +126,8 @@ class MathAgent:
 
         if not code:
             fb = (
-                "No Python code block found. Emit CODE in a ```python fenced block "
-                "and set ANSWER = <int>."
+                "Your response did not contain a valid code block. "
+                "Remember, you MUST wrap your code in ```python and ```."
             )
         else:
             sandbox = run_code(
@@ -128,11 +148,12 @@ class MathAgent:
                 )
                 if answer is None:
                     fb = (
-                        "Code ran but no integer ANSWER was produced. "
-                        "Set ANSWER = <int> and print(ANSWER)."
+                        "Code ran but no integer result was produced. "
+                        "Print only the final integer."
                     )
             else:
-                fb = f"Execution failed: {sandbox.error}"
+                err = sandbox.error or "Unknown execution error"
+                fb = err
 
         attempt = Attempt(
             index=index,
@@ -175,6 +196,8 @@ class MathAgent:
         if votes:
             final, _count = Counter(votes).most_common(1)[0]
             success = True
+        elif self.default_answer_on_fail is not None:
+            final = int(self.default_answer_on_fail)
 
         return AgentResult(
             problem=problem,
@@ -187,5 +210,6 @@ class MathAgent:
                 "votes": votes,
                 "majority_vote_k": self.majority_vote_k,
                 "vote_counts": dict(Counter(votes)),
+                "defaulted": bool(not votes and self.default_answer_on_fail is not None),
             },
         )

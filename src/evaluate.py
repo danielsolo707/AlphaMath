@@ -36,6 +36,9 @@ def evaluate(
         elapsed = time.perf_counter() - t_item
         pred = result.answer
         is_correct = gold_cmp is not None and pred is not None and int(pred) == int(gold_cmp)
+        # Default-answer fallback (0) should not count as success on unlabeled wrongs
+        if result.meta.get("defaulted"):
+            is_correct = False
         if is_correct:
             correct += 1
         row = {
@@ -69,8 +72,9 @@ def evaluate(
         "model": rows[0]["model"] if rows else None,
         "per_problem": rows,
         "notes": (
-            "Competition path uses open-weight DeepSeek-Math-7B-Instruct via transformers "
-            "(offline, Kaggle GPU, no external API). "
+            "Competition path uses open-weight Qwen2.5-Math-7B via transformers "
+            "(offline, Kaggle GPU, no external API) — aligned with kernel "
+            "danielsolo1770/alpha-math. "
             "Use configs/smoke_mock.yaml for CPU pipeline tests without downloading weights."
         ),
     }
@@ -81,16 +85,24 @@ def build_agent_from_config(cfg: dict) -> MathAgent:
     llm = build_llm(cfg)
     agent_cfg = cfg.get("agent", {})
     sb = cfg.get("sandbox", {})
+    default_on_fail = agent_cfg.get("default_answer_on_fail", 0)
+    if default_on_fail is False or default_on_fail == "null":
+        default_on_fail = None
+    elif default_on_fail is not None:
+        default_on_fail = int(default_on_fail)
     return MathAgent(
         llm,
-        max_attempts=int(agent_cfg.get("max_attempts", 3)),
-        temperature=float(agent_cfg.get("temperature", 0.2)),
+        max_attempts=int(agent_cfg.get("max_attempts", 2)),
+        temperature=float(agent_cfg.get("temperature", 0.7)),
+        top_p=float(agent_cfg.get("top_p", 0.9)),
         sandbox_timeout=float(sb.get("timeout_seconds", 5)),
         allowed_modules=list(sb.get("allowed_modules") or []),
         answer_min=int(cfg.get("answer_min", 0)),
         answer_max=int(cfg.get("answer_max", 999)),
         clamp_answer=bool(agent_cfg.get("clamp_answer", True)),
-        majority_vote_k=int(agent_cfg.get("majority_vote_k", 1)),
+        majority_vote_k=int(agent_cfg.get("majority_vote_k", 3)),
+        verbose_prompts=bool(agent_cfg.get("verbose_prompts", False)),
+        default_answer_on_fail=default_on_fail,
     )
 
 
