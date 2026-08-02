@@ -7,7 +7,9 @@ agent:
   max_corrections: 2
   temperature: 0.7
   top_p: 0.9
-  time_budget_seconds: 180
+  # Per-problem wall budget (initial + repairs + votes). AIME needs more headroom
+  # than the 10-problem sanity set.
+  time_budget_seconds: 300
   majority_vote_k: 3
   early_stop_majority: true
   seed: 2026
@@ -16,7 +18,8 @@ agent:
   default_answer_on_fail: 0
 
 sandbox:
-  timeout_seconds: 8
+  # AIME-style sympy search can exceed 8s; keep hard kill but allow more headroom.
+  timeout_seconds: 12
   max_output_chars: 8000
   max_source_chars: 50000
   memory_limit_mb: 1536
@@ -35,8 +38,8 @@ llm:
   model: Qwen/Qwen2.5-Math-7B-Instruct
   model_path: /kaggle/input/models/urvishp80/qwen-2.5-math-7b/transformers/default/1
   local_files_only: true
-  # A 7B checkpoint is too close to a T4's VRAM ceiling in float16.
-  # Quantize at load time; preflight fails clearly if bitsandbytes is missing.
+  # Prefer 4-bit on T4/A10+ (sm_70+). On P100 (sm_60) the loader auto-disables
+  # bitsandbytes and falls back to float16 to avoid segfaults.
   load_in_4bit: true
   load_in_8bit: false
   torch_dtype: float16

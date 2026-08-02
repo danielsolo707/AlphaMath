@@ -1,0 +1,16 @@
+{
+  "name": "aime_2022_2024_validation",
+  "source_dataset": "AI-MO/aimo-validation-aime",
+  "n_problems": 90,
+  "answer_min": 4,
+  "answer_max": 944,
+  "years_in_urls": [
+    "2022",
+    "2023",
+    "2024"
+  ],
+  "bad_rows": [],
+  "local_json": "data/benchmarks/aime/aime_2022_2024.json",
+  "local_csv": "data/benchmarks/aime/aime_2022_2024.csv",
+  "kaggle_payload": "kaggle/aime_benchmark_dataset"
+}

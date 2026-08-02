@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.3.0 - AIME labeled benchmark + reliability
+
+- Added AIME 2022–2024 validation set (90 problems) under `data/benchmarks/aime/`
+  and Kaggle dataset `danielsolo1770/alphamath-aime-benchmark`.
+- Kernel evaluates full attached AIME set (no silent 10-problem cap).
+- GPU safety: refuse unsupported arches (e.g. P100 sm_60) instead of emitting
+  default-zero scores; auto-disable bitsandbytes on old GPUs; CUDA generate probe.
+- Fixed fenced code extraction so shared leading indent is not stripped from the
+  first line only (major IndentationError source).
+- AIME-friendly budgets: sandbox timeout 12s, per-problem time budget 300s.
+- Smarter labeled-benchmark discovery prefers AIME / larger external sets.
+- Scripts: `prepare_aime_benchmark.py`, `freeze_kaggle_output.py`, `analyze_eval.py`.
+- Evaluation checkpoint/resume for multi-hour labeled runs (`checkpoint.json`).
+
 ## 0.2.2 - category folder layout
 
 - Clean repo root: only README, LICENSE, pyproject, requirements entrypoint, env example.

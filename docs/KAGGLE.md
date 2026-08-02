@@ -20,24 +20,37 @@ by the official Kaggle CLI:
 ```text
 kaggle/runtime_dataset/   # metadata + generated source ZIP
 kaggle/kernel/            # private GPU script + kernel metadata
+kaggle/aime_benchmark_dataset/  # optional labeled AIME eval set
 ```
+
+Auth: place an access token at `~/.kaggle/access_token` (or classic `kaggle.json`).
 
 The intended sequence is:
 
 ```bash
-kaggle datasets create -p kaggle/runtime_dataset -r zip
-kaggle kernels push -p kaggle/kernel --accelerator NvidiaTeslaT4 -t 21600
+python scripts/build_kaggle_bundle.py
+# first time only:
+# kaggle datasets create -p kaggle/runtime_dataset -r zip
+# kaggle datasets create -p kaggle/aime_benchmark_dataset -r zip
+kaggle datasets version -p kaggle/runtime_dataset -m "runtime refresh" -r zip
+kaggle datasets version -p kaggle/aime_benchmark_dataset -m "aime refresh" -r zip
+kaggle kernels push -p kaggle/kernel --accelerator NvidiaTeslaT4 -t 32400
 kaggle kernels status danielsolo1770/alpha-math-real-model-evaluation
-kaggle kernels output danielsolo1770/alpha-math-real-model-evaluation -p results/kaggle_real
+kaggle kernels output danielsolo1770/alpha-math-real-model-evaluation -p results/kaggle_real -o
 ```
 
-If the private runtime Dataset already exists, use `kaggle datasets version`
-instead of `create`. The Kernel attaches the public
-`mehedi457/qwen25-math-7b-instruct` weight Dataset, runs regression tests before
-model loading, discovers its actual directory, evaluates ten bundled sanity
-problems, and emits either `alphamath_artifacts.zip` or a diagnostic archive.
-Account IDs and external-source versions in the metadata should be verified before
-the first upload.
+The Kernel attaches:
+
+1. `danielsolo1770/alphamath-runtime-bundle` — source + tests + config  
+2. `mehedi457/qwen25-math-7b-instruct` — offline Qwen2.5-Math-7B weights  
+3. `danielsolo1770/alphamath-aime-benchmark` — labeled AIME JSON (preferred)
+
+It runs regression tests before model load, refuses unsupported GPU arches
+(e.g. P100 / sm_60 with modern PyTorch), prefers `aime_2022_2024.json` when
+present, and emits `alphamath_artifacts.zip` (or a diagnostic archive on failure).
+
+**GPU note:** request Tesla T4. If Kaggle assigns P100, preflight fails loudly —
+re-queue until a T4 is assigned rather than trusting default-zero scores.
 
 ## Notebook workflow
 

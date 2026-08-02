@@ -22,13 +22,37 @@ def evaluate(
     agent: MathAgent,
     *,
     verbose: bool = True,
+    checkpoint_path: str | Path | None = None,
 ) -> dict:
-    rows = []
-    correct = 0
+    """Evaluate labeled problems.
+
+    If *checkpoint_path* is set, completed rows are saved after each problem and
+    already-finished ids are skipped on resume (important for multi-hour AIME runs).
+    """
+    rows: list[dict] = []
+    done_ids: set[str] = set()
+    checkpoint = Path(checkpoint_path) if checkpoint_path else None
+    if checkpoint and checkpoint.exists():
+        try:
+            prior = json.loads(checkpoint.read_text(encoding="utf-8"))
+            rows = list(prior.get("per_problem") or [])
+            done_ids = {str(row.get("id")) for row in rows if row.get("id") is not None}
+            if verbose and done_ids:
+                print(f"Resume: loaded {len(done_ids)} completed problems from {checkpoint}")
+        except Exception as exc:  # noqa: BLE001
+            if verbose:
+                print(f"Checkpoint unreadable ({exc}); starting fresh.")
+            rows, done_ids = [], set()
+
+    correct = sum(1 for row in rows if row.get("correct"))
     t0 = time.perf_counter()
 
     for i, item in enumerate(problems, 1):
-        pid = item.get("id", f"p{i}")
+        pid = str(item.get("id", f"p{i}"))
+        if pid in done_ids:
+            if verbose:
+                print(f"[{i:02d}/{len(problems)}] SKIP {pid} (checkpoint)")
+            continue
         problem = item["problem"]
         gold = item.get("answer")
         # When agent clamps to 0..999, also clamp gold for fair compare
@@ -75,9 +99,20 @@ def evaluate(
             "trace": result.to_dict()["attempts"],
         }
         rows.append(row)
+        done_ids.add(pid)
         if verbose:
             mark = "OK" if is_correct else "MISS"
-            print(f"[{i:02d}/{len(problems)}] {mark}  {pid}: pred={pred} gold={gold_cmp}  ({elapsed:.2f}s)")
+            print(f"[{i:02d}/{len(problems)}] {mark}  {pid}: pred={pred} gold={gold_cmp}  ({elapsed:.2f}s)", flush=True)
+        if checkpoint is not None:
+            checkpoint.parent.mkdir(parents=True, exist_ok=True)
+            partial = {
+                "schema_version": "2.0-partial",
+                "completed": len(rows),
+                "correct": correct,
+                "accuracy": round(correct / len(rows), 4) if rows else 0.0,
+                "per_problem": rows,
+            }
+            checkpoint.write_text(json.dumps(partial, indent=2, ensure_ascii=False), encoding="utf-8")
 
     total = len(problems)
     acc = correct / total if total else 0.0

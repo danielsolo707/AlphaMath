@@ -59,6 +59,15 @@ def load_labeled_problems(path: str | Path) -> list[dict[str, Any]]:
 
 
 def discover_labeled_benchmark(roots: list[str | Path]) -> Path | None:
+    """Find the best labeled benchmark under *roots*.
+
+    Preference order:
+    1. Explicit AIME / olympiad validation files (``aime_*.json`` etc.)
+    2. Larger external labeled sets over tiny demos
+    3. First valid JSONL / JSON / CSV that parses as problem+answer rows
+    """
+    candidates: list[tuple[int, int, Path]] = []
+    skip_tokens = ("model", "submission", "sample_problems", "template", "manifest", "report")
     for root_value in roots:
         root = Path(root_value)
         if not root.exists():
@@ -66,12 +75,26 @@ def discover_labeled_benchmark(roots: list[str | Path]) -> Path | None:
         for suffix in ("*.jsonl", "*.json", "*.csv"):
             for path in sorted(root.rglob(suffix)):
                 lowered = str(path).lower()
-                if any(token in lowered for token in ("model", "submission", "sample_problems", "template")):
+                if any(token in lowered for token in skip_tokens):
                     continue
                 try:
                     problems = load_labeled_problems(path)
                 except Exception:
                     continue
-                if problems:
-                    return path
-    return None
+                if not problems:
+                    continue
+                # Higher score = preferred. AIME filenames win; size is a tiebreaker.
+                score = 0
+                name = path.name.lower()
+                if "aime" in name or "aime" in lowered:
+                    score += 1000
+                if "olympiad" in name or "validation" in name:
+                    score += 100
+                if "sample" in name or "demo" in name:
+                    score -= 500
+                score += min(len(problems), 500)
+                candidates.append((score, len(problems), path))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: (item[0], item[1], str(item[2])), reverse=True)
+    return candidates[0][2]

@@ -9,10 +9,12 @@ it; failed programs receive their original problem, previous code, stdout, and
 error for correction; independent successful answers are aggregated by strict
 majority.
 
-> **Evidence status:** engineering is covered by automated regression tests.
-> A **real** Qwen2.5-Math-7B Kaggle run is frozen at
-> [`results/kaggle_runs/v1_real_qwen_sample10/`](./results/kaggle_runs/v1_real_qwen_sample10/)
-> — **90% (9/10)** on the bundled 10-problem sanity set (not a public leaderboard).
+> **Evidence status:** engineering is covered by automated regression tests (**23**).
+> Real Qwen2.5-Math-7B (Kaggle T4, 4-bit) evidence:
+> - Sanity: **90% (9/10)** on bundled demos —
+>   [`results/kaggle_runs/v1_real_qwen_sample10/`](./results/kaggle_runs/v1_real_qwen_sample10/)
+> - AIME 2022–2024 (90 labeled problems): see latest `results/kaggle_runs/v2_aime_*`
+>   when frozen (`external_labeled`; not an AoPS/AIMO leaderboard).
 > Mock accuracy is never presented as model intelligence.
 
 ## Why this is more than a notebook wrapper
@@ -55,14 +57,14 @@ fallbacks/ties/timeouts remain visible in the report.
 
 | Evidence | Status | What it proves |
 |---|---:|---|
-| Regression suite | **17/17 passing locally** | repair context, attempt semantics, seeds, voting, parser, reports, resume, import policy, output cap, hard timeout |
+| Regression suite | **23/23 passing locally** | repair, seeds, voting, parser, reports, resume, sandbox, packaging, code extract, checkpoints |
 | CPU mock integration | Available | module/config/sandbox plumbing only |
-| **Real Qwen labeled run (Kaggle T4)** | **Done — frozen** | end-to-end offline inference + agent loop on open weights |
-| Headline accuracy | **90% (9/10)** | on **bundled sanity** problems only (`data/sample_problems.json`) |
-| Artifact path | [`results/kaggle_runs/v1_real_qwen_sample10/`](./results/kaggle_runs/v1_real_qwen_sample10/) | `run_manifest.json`, evaluation JSON/CSV/MD, preflight, tests log |
-| Hardware / load | Tesla T4 · Transformers · **4-bit** | matches Kaggle portfolio demo constraints |
-| Repair/vote ablation | Optional (`RUN_ABLATION=True`) | mechanism contribution (not in this freeze) |
-| Public leaderboard score | **Not claimed** | 10 demos ≠ AIMO LB |
+| Real Qwen sanity (Kaggle T4) | **Frozen** | end-to-end offline inference on open weights |
+| Sanity accuracy | **90% (9/10)** | bundled demos only (`data/sample_problems.json`, `bundled_sanity`) |
+| AIME 2022–2024 labeled | **See `results/kaggle_runs/v2_aime_*`** | external validation set (90 problems, `external_labeled`) |
+| Artifact contract | JSON + CSV + MD + manifest | auditable per-problem traces |
+| Hardware / load | Tesla T4 · Transformers · **4-bit** | Kaggle portfolio constraints |
+| Public leaderboard score | **Not claimed** | labeled validation ≠ AIMO LB |
 
 ### Real-run snapshot (honest)
 
@@ -245,15 +247,18 @@ AlphaMath/
 │
 ├── requirements/             # core / dev / gpu / quantization
 ├── configs/                  # default, kaggle, smoke_mock YAML
-├── data/                     # sample problems + templates
+├── data/                     # sample problems + AIME benchmark
+│   └── benchmarks/aime/      # 90 AIME 2022–2024 validation problems
 ├── models/                   # local weights (gitignored; see README)
 ├── src/                      # agent, sandbox, eval, reporting
-├── scripts/                  # CLIs and Kaggle bundle builder
+├── scripts/                  # CLIs, bundle builder, freeze/analyze helpers
 ├── tests/                    # regression suite
 ├── notebooks/                # Kaggle portfolio notebook
-├── kaggle/                   # upload checklist, kernel, dataset helpers
+├── kaggle/                   # kernel, runtime + AIME dataset payloads
 ├── results/                  # summaries + frozen Kaggle runs
-│   └── kaggle_runs/v1_real_qwen_sample10/
+│   └── kaggle_runs/
+│       ├── v1_real_qwen_sample10/   # 90% sanity freeze
+│       └── v2_aime_*/               # labeled AIME freezes
 ├── docs/                     # design, Kaggle, roadmap, changelog
 └── .github/                  # CI
 ```
@@ -264,6 +269,8 @@ AlphaMath/
   engineering**, not a claim that we trained the 7B model.
 - The frozen **90%** result uses **10 bundled demo problems** (`bundled_sanity`).
   It is a **pipeline + model sanity check**, not an olympiad leaderboard score.
+- AIME 2022–2024 scores (when frozen under `results/kaggle_runs/v2_aime_*`) are
+  **labeled validation** only — not AoPS contest ranking and not AIMO LB.
 - Weights on Kaggle were loaded from a public input dataset
   (`mehedi457/qwen25-math-7b-instruct`); inference stayed offline / local files.
 - Dependency bootstrap on Kaggle may use network **once** to install packages

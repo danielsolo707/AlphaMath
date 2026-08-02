@@ -2,7 +2,9 @@
 
 ## Minimum credible run
 
-- A licensed, labeled held-out dataset with at least 100 problems.
+- A licensed, labeled held-out dataset (this repo uses **90** AIME 2022–2024
+  validation problems from `AI-MO/aimo-validation-aime`; ≥100 is still preferred
+  when available).
 - Exact dataset name/version and selection rule.
 - No prompt or answer tuning on the held-out slice.
 - Fixed config and deterministic seed policy.
@@ -12,10 +14,22 @@
 ## Recommended staged execution
 
 1. Three-problem real-model dry run.
-2. Full bundled sanity run.
-3. External labeled benchmark with `RUN_ABLATION=False`.
+2. Full bundled sanity run (`data/sample_problems.json`).
+3. External labeled benchmark (`data/benchmarks/aime/`) with `RUN_ABLATION=False`.
 4. Same external benchmark with `RUN_ABLATION=True` if time permits.
 5. Competition submission separately; do not infer accuracy from hidden labels.
+
+## AIME protocol used here
+
+| Field | Value |
+|-------|--------|
+| Source | HuggingFace `AI-MO/aimo-validation-aime` |
+| Local path | `data/benchmarks/aime/aime_2022_2024.json` |
+| Kaggle dataset | `danielsolo1770/alphamath-aime-benchmark` |
+| n | 90 |
+| Answer range | 0–999 (agent clamps with `% 1000`) |
+| Selection | all train rows with integer answers in range |
+| Rebuild | `python scripts/prepare_aime_benchmark.py` |
 
 ## Ablation interpretation
 

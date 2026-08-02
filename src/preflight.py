@@ -81,8 +81,30 @@ def run_preflight(cfg: dict[str, Any], *, exercise_sandbox: bool = True) -> dict
             import torch
 
             cuda = torch.cuda.is_available()
-            detail = torch.cuda.get_device_name(0) if cuda else "CUDA unavailable"
-            checks.append(_check("cuda", cuda, detail))
+            if not cuda:
+                checks.append(_check("cuda", False, "CUDA unavailable"))
+            else:
+                name = torch.cuda.get_device_name(0)
+                major, minor = torch.cuda.get_device_capability(0)
+                # Current Kaggle PyTorch wheels only ship kernels for sm_70+
+                # (V100/T4/A10/...). P100 is sm_60: loads weights then every
+                # generate() fails → agent defaults all answers to 0 in ~0.02s.
+                arch_ok = major >= 7
+                detail = f"{name} sm_{major}{minor}"
+                if not arch_ok:
+                    detail += (
+                        " — incompatible with this PyTorch build (need sm_70+, e.g. Tesla T4). "
+                        "Re-run the kernel until a T4 is assigned; do not trust scores on P100."
+                    )
+                checks.append(_check("cuda", True, f"{name}"))
+                checks.append(
+                    _check(
+                        "cuda_arch",
+                        arch_ok,
+                        detail,
+                        required=True,
+                    )
+                )
         except Exception as exc:
             checks.append(_check("cuda", False, f"torch check failed: {exc}"))
 

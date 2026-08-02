@@ -20,10 +20,10 @@ weights, distillation, pruning, or benchmark improvements before artifacts exist
 
 ## Next: stronger evidence
 
-1. Run a licensed held-out benchmark with at least 100 problems.
+1. **In progress / frozen under `results/kaggle_runs/v2_aime_*`:** AIME 2022–2024
+   (90 labeled problems from `AI-MO/aimo-validation-aime`).
 2. Enable ablation and report accuracy delta alongside latency/attempt cost.
-3. Review failure traces (starting with `demo_10`) and classify prompt,
-   generation, execution, and math reasoning failures.
+3. Review failure traces (syntax/indent vs math) and iterate prompts/repair.
 4. Only then consider a competition-style score claim with full traces.
 
 ## Candidate research increments

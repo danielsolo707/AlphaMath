@@ -127,21 +127,50 @@ class TransformersMathLLM(BaseLLM):
             "revision": revision,
         }
 
-        # Kaggle notebook used full float16 (no bitsandbytes). 4/8-bit are optional
-        # for tighter VRAM budgets.
-        if load_in_4bit and torch.cuda.is_available():
+        # bitsandbytes 4/8-bit needs modern GPU arches (typically sm_70+).
+        # Kaggle sometimes assigns Tesla P100 (sm_60): current PyTorch + bnb can
+        # hard-crash (ops.cu "named symbol not found" → segfault). Fall back to fp16.
+        use_4bit = bool(load_in_4bit and torch.cuda.is_available())
+        use_8bit = bool(load_in_8bit and torch.cuda.is_available() and not use_4bit)
+        if torch.cuda.is_available() and (use_4bit or use_8bit):
+            major, minor = torch.cuda.get_device_capability(0)
+            gpu_name = torch.cuda.get_device_name(0)
+            if major < 7:
+                log.warning(
+                    "GPU %s (sm_%d%d) is too old for bitsandbytes on this PyTorch build; "
+                    "disabling 4/8-bit and loading float16 instead.",
+                    gpu_name,
+                    major,
+                    minor,
+                )
+                print(
+                    f"[WARN] {gpu_name} sm_{major}{minor}: bitsandbytes disabled → float16 load",
+                    flush=True,
+                )
+                use_4bit = False
+                use_8bit = False
+
+        if use_4bit:
             model_kwargs["quantization_config"] = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=dtype,
                 bnb_4bit_use_double_quant=True,
                 bnb_4bit_quant_type="nf4",
             )
-        elif load_in_8bit and torch.cuda.is_available():
+        elif use_8bit:
             model_kwargs["quantization_config"] = BitsAndBytesConfig(load_in_8bit=True)
         else:
             model_kwargs["torch_dtype"] = dtype
             if not torch.cuda.is_available():
                 model_kwargs["device_map"] = None
+            elif torch.cuda.is_available() and device_map == "auto":
+                # Leave headroom on 16GB cards (P100/T4) when not quantizing.
+                try:
+                    free_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+                    if free_gb <= 17:
+                        model_kwargs["max_memory"] = {0: f"{max(int(free_gb - 1.5), 10)}GiB"}
+                except Exception:  # pragma: no cover
+                    pass
 
         self.model = AutoModelForCausalLM.from_pretrained(self.model_id, **model_kwargs)
         self.model.eval()
@@ -150,7 +179,36 @@ class TransformersMathLLM(BaseLLM):
             self.model.to("cpu")
 
         self.device = next(self.model.parameters()).device
-        log.info("Math model ready on %s", self.device)
+        # Fail fast if accelerate parked weights on meta/disk because VRAM/arch is broken.
+        try:
+            devices = {str(p.device) for p in self.model.parameters()}
+        except Exception:  # pragma: no cover
+            devices = {str(self.device)}
+        if any(d.startswith("meta") for d in devices) or any(
+            "disk" in d for d in devices
+        ):
+            raise RuntimeError(
+                f"Model parameters on unusable devices {sorted(devices)}. "
+                "This usually means GPU offload to disk on an unsupported GPU "
+                "(e.g. P100 with modern PyTorch). Re-run on Tesla T4 (sm_75)."
+            )
+        log.info("Math model ready on %s (param devices=%s)", self.device, sorted(devices))
+        print(f"Math model ready on {self.device} (param devices={sorted(devices)})", flush=True)
+
+        # One tiny generate to prove CUDA kernels work before a 90-problem loop.
+        if torch.cuda.is_available():
+            try:
+                probe = self.tokenizer("1+1=", return_tensors="pt")
+                probe = {k: v.to(self.device) for k, v in probe.items()}
+                with torch.inference_mode():
+                    _ = self.model.generate(**probe, max_new_tokens=4, do_sample=False)
+                print("CUDA generate probe: OK", flush=True)
+            except Exception as exc:
+                raise RuntimeError(
+                    "CUDA generate probe failed after load. This GPU/PyTorch pair cannot "
+                    f"run inference ({type(exc).__name__}: {exc}). "
+                    "Cancel and re-queue until Kaggle assigns Tesla T4 (sm_70+)."
+                ) from exc
 
     def _format_prompt(self, messages: list[dict[str, str]]) -> str:
         """Build a single prompt string; prefer tokenizer chat template (Qwen etc.)."""

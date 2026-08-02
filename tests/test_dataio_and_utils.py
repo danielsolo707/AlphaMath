@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.dataio import load_labeled_problems
+from src.dataio import discover_labeled_benchmark, load_labeled_problems
 from src.utils import extract_integer_answer, validate_config
 
 
@@ -40,6 +40,28 @@ class DataAndParsingTests(unittest.TestCase):
                     "sandbox": {"timeout_seconds": 1, "max_output_chars": 1000, "max_source_chars": 1000},
                 }
             )
+
+    def test_discover_prefers_aime_over_small_json(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "misc").mkdir()
+            (root / "misc" / "other.json").write_text(
+                json.dumps([{"id": "x", "problem": "1+1", "answer": 2}]),
+                encoding="utf-8",
+            )
+            aime = root / "aime_2022_2024.json"
+            aime.write_text(
+                json.dumps(
+                    [
+                        {"id": f"a{i}", "problem": f"{i}+{i}", "answer": 2 * i}
+                        for i in range(5)
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            found = discover_labeled_benchmark([root])
+            self.assertIsNotNone(found)
+            self.assertEqual(found.name, "aime_2022_2024.json")
 
 
 if __name__ == "__main__":

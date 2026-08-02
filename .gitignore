@@ -61,3 +61,13 @@ results/*.zip
 
 # Nested accidental source dumps from kernel downloads
 results/kaggle_runs/**/alphamath_source/
+
+# Ephemeral Kaggle CLI pull/diag dumps (not portfolio evidence)
+results/kaggle_diag*/
+results/kaggle_pulled_kernel/
+results/kaggle_runs/**/status.log
+
+# Overnight monitor scratch
+results/kaggle_runs/v2_aime_monitor/
+results/kaggle_runs/v2_aime_failed/
+

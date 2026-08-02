@@ -159,6 +159,31 @@ def main() -> int:
         model_path = _discover_model_path()
         dependency_bootstrap = _ensure_bitsandbytes()
         os.environ["ALPHAMATH_DEPENDENCY_BOOTSTRAP"] = json.dumps(dependency_bootstrap)
+
+        # Log GPU early — Kaggle may assign P100 instead of T4.
+        gpu_info: dict = {"cuda_available": False}
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                major, minor = torch.cuda.get_device_capability(0)
+                gpu_info = {
+                    "cuda_available": True,
+                    "name": torch.cuda.get_device_name(0),
+                    "capability": f"sm_{major}{minor}",
+                    "memory_gb": round(torch.cuda.get_device_properties(0).total_memory / 1e9, 2),
+                    "bitsandbytes_ok": major >= 7,
+                }
+                print(f"GPU: {gpu_info}", flush=True)
+                if major < 7:
+                    print(
+                        "[WARN] Old GPU (e.g. P100 sm_60): 4-bit load will be disabled automatically "
+                        "to avoid bitsandbytes segfaults. Prefer T4/P100-safe float16 path.",
+                        flush=True,
+                    )
+        except Exception as gpu_exc:  # pragma: no cover
+            gpu_info = {"cuda_available": False, "error": str(gpu_exc)}
+
         bootstrap.update(
             {
                 "status": "running_evaluation",
@@ -167,6 +192,7 @@ def main() -> int:
                 "model_path": str(model_path),
                 "regression_tests": "passed",
                 "dependency_bootstrap": dependency_bootstrap,
+                "gpu": gpu_info,
             }
         )
         _write_bootstrap(bootstrap)
@@ -175,11 +201,28 @@ def main() -> int:
         os.chdir(repo)
         from src.kaggle_experiment import run_kaggle_experiment
 
+        # Prefer attached AIME JSON; fall back to auto-discovery inside run_kaggle_experiment.
+        aime_candidates = sorted(INPUT_ROOT.rglob("aime_2022_2024.json"))
+        # Prefer the dedicated AIME dataset path over a copy nested inside the runtime tree.
+        preferred = [
+            path
+            for path in aime_candidates
+            if "alphamath-aime" in str(path).lower() or "aime_benchmark" in str(path).lower()
+        ]
+        chosen = preferred[0] if preferred else (aime_candidates[0] if aime_candidates else None)
+        benchmark_path = str(chosen) if chosen else None
+        if benchmark_path:
+            print(f"Using AIME benchmark: {benchmark_path} (candidates={len(aime_candidates)})")
+        else:
+            print("No aime_2022_2024.json under /kaggle/input; auto-discovery will run.")
+
+        # eval_limit=None runs the full set — do not silently cap at 10.
         result = run_kaggle_experiment(
             repo / "configs" / "kaggle.yaml",
             model_path=str(model_path),
+            benchmark_path=benchmark_path,
             output_dir=OUTPUT_ROOT,
-            eval_limit=10,
+            eval_limit=None,
             run_competition_submission=False,
             run_ablation=False,
         )

@@ -30,8 +30,13 @@ class KagglePackagingTests(unittest.TestCase):
         self.assertEqual(metadata["is_private"], "true")
         self.assertEqual(metadata["enable_internet"], "true")
         self.assertIn("danielsolo1770/alphamath-runtime-bundle", metadata["dataset_sources"])
+        self.assertIn("danielsolo1770/alphamath-aime-benchmark", metadata["dataset_sources"])
         external_sources = metadata["dataset_sources"][1:] + metadata["model_sources"]
         self.assertTrue(external_sources, "an offline weight source must be attached")
+        self.assertTrue(
+            any("qwen" in source.lower() or "math" in source.lower() for source in external_sources),
+            "expected a math weight dataset among attached sources",
+        )
 
     def test_kernel_accepts_kaggle_expanded_dataset(self) -> None:
         script = ROOT / "kaggle" / "kernel" / "alpha_math_kaggle.py"

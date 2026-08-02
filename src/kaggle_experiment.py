@@ -168,7 +168,13 @@ def run_kaggle_experiment(
         if eval_limit:
             problems = problems[:eval_limit]
         evaluation_problems = problems
-        evaluation_summary = evaluate(problems, agent, verbose=True)
+        checkpoint = output / "evaluation" / "checkpoint.json"
+        evaluation_summary = evaluate(
+            problems,
+            agent,
+            verbose=True,
+            checkpoint_path=checkpoint,
+        )
         evaluation_summary["dataset_tier"] = (
             "bundled_sanity" if selected_benchmark.name == "sample_problems.json" else "external_labeled"
         )

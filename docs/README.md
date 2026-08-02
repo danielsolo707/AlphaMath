@@ -12,4 +12,5 @@
 | [`interview/`](./interview/) | Local interview prep (gitignored) |
 
 Public project story: root [`../README.md`](../README.md).  
-Frozen real run: [`../results/kaggle_runs/v1_real_qwen_sample10/`](../results/kaggle_runs/v1_real_qwen_sample10/).
+Frozen runs: [`../results/kaggle_runs/`](../results/kaggle_runs/)
+(`v1` sanity, `v2_aime_*` labeled AIME when present).
