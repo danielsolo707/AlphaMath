@@ -35,17 +35,24 @@
     "multi_tenant_security_boundary": false
   },
   "evidence": {
-    "automated_regression_tests": 17,
+    "automated_regression_tests": 23,
     "mock_pipeline_artifact": "results/sample_eval.json",
     "real_model_benchmark_committed": true,
-    "real_model_run_id": "v1_real_qwen_sample10",
-    "real_model_run_path": "results/kaggle_runs/v1_real_qwen_sample10/",
-    "real_model_accuracy": 0.9,
-    "real_model_n_problems": 10,
-    "real_model_dataset_tier": "bundled_sanity",
+    "real_model_run_id": "v2_aime_2022_2024",
+    "real_model_run_path": "results/kaggle_runs/v2_aime_2022_2024/",
+    "real_model_accuracy": 0.1333,
+    "real_model_n_problems": 90,
+    "real_model_dataset_tier": "external_labeled",
     "real_model_hardware": "Tesla T4 (Kaggle)",
     "public_leaderboard_score_claimed": false,
     "custom_finetuned_weights_claimed": false,
-    "caveat": "90% is on 10 bundled demo problems only — not an AIMO leaderboard or large public benchmark."
+    "caveat": "Primary labeled evidence is AIME validation (12/90 = 13.3%), not an AIMO public leaderboard score. Sanity 90% (9/10) remains a pipeline check only.",
+    "real_model_correct": 12,
+    "sanity_run_id": "v1_real_qwen_sample10",
+    "sanity_accuracy": 0.9,
+    "sanity_n_problems": 10,
+    "execution_success_rate": 0.6111,
+    "mean_vote_agreement": 0.9123,
+    "avg_latency_s": 304.717
   }
 }

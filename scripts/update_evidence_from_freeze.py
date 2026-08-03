@@ -29,12 +29,17 @@ def main() -> int:
     summary_path = ROOT / "results" / "pipeline_summary.json"
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     evidence = summary.setdefault("evidence", {})
+    run_dir_abs = run_dir.resolve()
+    try:
+        run_rel = str(run_dir_abs.relative_to(ROOT.resolve())).replace("\\", "/") + "/"
+    except ValueError:
+        run_rel = str(run_dir).replace("\\", "/").rstrip("/") + "/"
     evidence.update(
         {
             "automated_regression_tests": 23,
             "real_model_benchmark_committed": True,
-            "real_model_run_id": run_dir.name,
-            "real_model_run_path": str(run_dir.relative_to(ROOT)).replace("\\", "/") + "/",
+            "real_model_run_id": run_dir_abs.name,
+            "real_model_run_path": run_rel,
             "real_model_accuracy": accuracy,
             "real_model_n_problems": total,
             "real_model_correct": correct,

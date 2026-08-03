@@ -71,3 +71,7 @@ results/kaggle_runs/**/status.log
 results/kaggle_runs/v2_aime_monitor/
 results/kaggle_runs/v2_aime_failed/
 
+
+# Raw Kaggle download trees (keep freeze artifacts/ only)
+results/kaggle_runs/**/_download/
+

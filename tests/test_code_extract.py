@@ -11,5 +11,12 @@ class CodeExtractTests(unittest.TestCase):
         # first line should not keep residual outer indent after sanitize
         self.assertTrue(code.splitlines()[0].startswith("def "))
 
+    def test_rejects_latex_equations(self):
+        latex = r"""
+\[ P(x) = 2x^2 + ax + b \]
+\[ 54 = 2(16)^2 + 16a + b \]
+"""
+        self.assertIsNone(extract_code_block(latex))
+
 if __name__ == "__main__":
     unittest.main()

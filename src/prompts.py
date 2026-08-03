@@ -9,17 +9,18 @@ from __future__ import annotations
 # Matches the Kaggle notebook system prompt (tool-integrated math solving).
 SYSTEM_PROMPT = """You are a strict Mathematical Python Generator. Your ONLY job is to write a Python script using sympy to solve the user's problem.
 CRITICAL RULES:
-1. Do NOT explain the math in natural language.
-2. You MUST enclose your full Python code strictly inside a single ```python and ``` block.
-3. The script MUST end by printing only the final integer result.
-4. Prefer exact arithmetic (integers / sympy). Avoid floats unless necessary.
-5. Libraries already available in the sandbox — do NOT import os/sys/subprocess:
+1. Do NOT explain the math in natural language. Do NOT write LaTeX.
+2. Forbidden in the response: \\[ \\] \\( \\) $...$ \\frac \\text prose paragraphs.
+3. You MUST enclose your full Python code strictly inside a single ```python and ``` block.
+4. The script MUST end by printing only the final integer result.
+5. Prefer exact arithmetic (integers / sympy). Avoid floats unless necessary.
+6. Libraries already available in the sandbox — do NOT import os/sys/subprocess:
    math, sympy (as sympy or sp), itertools, functools, collections, fractions, decimal, numpy (np)
-6. Optionally set ANSWER = <int> before printing it.
-7. For AIME-style contests the official answer is an integer in 0..999. If the
+7. Optionally set ANSWER = <int> before printing it.
+8. For AIME-style contests the official answer is an integer in 0..999. If the
    natural answer is larger, print answer % 1000 (last three digits) unless the
    problem already asks for a residue or remainder.
-8. Keep scripts self-contained: define helpers before use, avoid undefined names,
+9. Keep scripts self-contained: define helpers before use, avoid undefined names,
    and never leave incomplete blocks or trailing prose after the code fence.
 """
 
@@ -132,30 +133,64 @@ def sanitize_python_code(code: str) -> str:
     return "\n".join(lines)
 
 
+def _looks_like_latex_or_prose(text: str) -> bool:
+    """Reject LaTeX / natural-language dumps that are not executable Python."""
+    import re
+
+    sample = text.strip()
+    if not sample:
+        return True
+    latex_hits = len(re.findall(r"\\\[|\\\]|\\\(|\\\)|\\frac|\\text|\\begin\{|\\end\{", sample))
+    if latex_hits >= 1:
+        return True
+    # Dollar-math heavy blobs without Python keywords.
+    if sample.count("$") >= 2 and not re.search(r"\b(print|import|def|for|while|if)\b", sample):
+        return True
+    return False
+
+
 def extract_code_block(text: str) -> str | None:
-    """Extract the first fenced python code block, or a heuristic fallback."""
+    """Extract a fenced python code block.
+
+    Heuristic (unfenced) extraction is intentionally conservative: AIME-style
+    model dumps often contain LaTeX equations with ``=`` that must NOT be treated
+    as Python (that was a major SyntaxError source on the 90-problem run).
+    """
     import re
 
     if not text:
         return None
-    # Do not use \s* after the language tag — it would eat the first line's indent.
-    fence = re.search(r"```(?:python)?[ \t]*\r?\n([\s\S]*?)```", text, re.IGNORECASE)
+    # Prefer explicit python fences.
+    fence = re.search(r"```python[ \t]*\r?\n([\s\S]*?)```", text, re.IGNORECASE)
     if fence:
-        return sanitize_python_code(fence.group(1))
+        code = sanitize_python_code(fence.group(1))
+        if code and not _looks_like_latex_or_prose(code):
+            return code
+    # Generic fence only if body looks like python, not latex.
+    fence_any = re.search(r"```[ \t]*\r?\n([\s\S]*?)```", text)
+    if fence_any:
+        code = sanitize_python_code(fence_any.group(1))
+        if code and not _looks_like_latex_or_prose(code):
+            # Require at least one python-ish token.
+            if re.search(r"\b(print|import|def|for|while|ANSWER)\b|^\s*[A-Za-z_][\w]*\s*=", code, re.M):
+                return code
     # Same-line fence: ```python code```
     fence_inline = re.search(r"```(?:python)?[ \t]+([\s\S]*?)```", text, re.IGNORECASE)
     if fence_inline:
-        return sanitize_python_code(fence_inline.group(1))
+        code = sanitize_python_code(fence_inline.group(1))
+        if code and not _looks_like_latex_or_prose(code):
+            return code
+    # Conservative unfenced fallback: only pure-looking short scripts.
     lines = text.splitlines()
     start = None
     for i, line in enumerate(lines):
         stripped = line.strip()
-        if stripped.startswith(("ANSWER", "#", "print", "n =", "x =", "def ", "for ", "while ")):
+        if stripped.startswith(("import ", "from ", "def ", "print(", "ANSWER", "#")):
             start = i
             break
-        if "=" in stripped and not stripped.lower().startswith("reasoning"):
-            start = i
-            break
-    if start is not None:
-        return sanitize_python_code("\n".join(lines[start:]))
-    return None
+    if start is None:
+        return None
+    code = sanitize_python_code("\n".join(lines[start:]))
+    if not code or _looks_like_latex_or_prose(code):
+        return None
+    return code

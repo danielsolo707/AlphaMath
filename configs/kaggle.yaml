@@ -5,11 +5,11 @@ answer_max: 999
 
 agent:
   max_corrections: 2
-  temperature: 0.7
+  # Cooler sampling favors syntax-stable code for tool execution on hard AIME.
+  temperature: 0.5
   top_p: 0.9
-  # Per-problem wall budget (initial + repairs + votes). AIME needs more headroom
-  # than the 10-problem sanity set.
-  time_budget_seconds: 300
+  # Hard AIME problems with 3 votes need more wall time than the sanity set.
+  time_budget_seconds: 420
   majority_vote_k: 3
   early_stop_majority: true
   seed: 2026

@@ -9,12 +9,13 @@ it; failed programs receive their original problem, previous code, stdout, and
 error for correction; independent successful answers are aggregated by strict
 majority.
 
-> **Evidence status:** engineering is covered by automated regression tests (**23**).
+> **Evidence status:** engineering is covered by automated regression tests (**24**).
 > Real Qwen2.5-Math-7B (Kaggle T4, 4-bit) evidence:
-> - Sanity: **90% (9/10)** on bundled demos â€”
+> - Sanity: **90% (9/10)** on bundled demos —
 >   [`results/kaggle_runs/v1_real_qwen_sample10/`](./results/kaggle_runs/v1_real_qwen_sample10/)
-> - AIME 2022â€“2024 (90 labeled problems): see latest `results/kaggle_runs/v2_aime_*`
->   when frozen (`external_labeled`; not an AoPS/AIMO leaderboard).
+> - AIME 2022-2024: **13.33% (12/90)** labeled validation —
+>   [`results/kaggle_runs/v2_aime_2022_2024/`](./results/kaggle_runs/v2_aime_2022_2024/)
+>   (`external_labeled`; not an AoPS/AIMO leaderboard).
 > Mock accuracy is never presented as model intelligence.
 
 ## Why this is more than a notebook wrapper
@@ -57,16 +58,16 @@ fallbacks/ties/timeouts remain visible in the report.
 
 | Evidence | Status | What it proves |
 |---|---:|---|
-| Regression suite | **23/23 passing locally** | repair, seeds, voting, parser, reports, resume, sandbox, packaging, code extract, checkpoints |
+| Regression suite | **24/24 passing locally** | repair, seeds, voting, parser, reports, resume, sandbox, packaging, code extract, checkpoints |
 | CPU mock integration | Available | module/config/sandbox plumbing only |
 | Real Qwen sanity (Kaggle T4) | **Frozen** | end-to-end offline inference on open weights |
 | Sanity accuracy | **90% (9/10)** | bundled demos only (`data/sample_problems.json`, `bundled_sanity`) |
-| AIME 2022â€“2024 labeled | **See `results/kaggle_runs/v2_aime_*`** | external validation set (90 problems, `external_labeled`) |
+| AIME 2022-2024 labeled | **Frozen — 13.33% (12/90)** | external validation (`external_labeled`) |
 | Artifact contract | JSON + CSV + MD + manifest | auditable per-problem traces |
-| Hardware / load | Tesla T4 Â· Transformers Â· **4-bit** | Kaggle portfolio constraints |
-| Public leaderboard score | **Not claimed** | labeled validation â‰  AIMO LB |
+| Hardware / load | Tesla T4 · Transformers · **4-bit** | Kaggle portfolio constraints |
+| Public leaderboard score | **Not claimed** | labeled validation != AIMO LB |
 
-### Real-run snapshot (honest)
+### Sanity snapshot (bundled demos)
 
 | Metric | Value |
 |--------|------:|
@@ -77,7 +78,22 @@ fallbacks/ties/timeouts remain visible in the report.
 | Avg latency | ~84 s / problem |
 | Failed id | `demo_10` (default answer 0 after code errors) |
 
-Read the freeze notes: [`results/kaggle_runs/v1_real_qwen_sample10/NOTES.md`](./results/kaggle_runs/v1_real_qwen_sample10/NOTES.md).
+### AIME 2022-2024 snapshot (honest)
+
+| Metric | Value |
+|--------|------:|
+| Correct | 12 / 90 |
+| Accuracy | **13.33%** |
+| Execution success | 61.11% |
+| Default rate | 36.67% |
+| Mean vote agreement | 91.23% |
+| Avg latency | ~305 s / problem |
+| Dominant failures | SyntaxError / IndentationError from LaTeX dumps |
+| GPU | Tesla T4 (sm_75) |
+
+Read freeze notes:
+[`v1 sanity`](./results/kaggle_runs/v1_real_qwen_sample10/NOTES.md) ·
+[`v2 AIME`](./results/kaggle_runs/v2_aime_2022_2024/NOTES.md).
 
 Run the local regression suite without pytest:
 

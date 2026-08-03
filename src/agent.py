@@ -182,10 +182,31 @@ class MathAgent:
 
         if not code:
             fb = (
-                "Your response did not contain a valid code block. "
-                "Remember, you MUST wrap your code in ```python and ```."
+                "Your response did not contain a valid ```python``` code block. "
+                "Do NOT write LaTeX or natural-language math. "
+                "Output only one fenced Python script that prints the final integer."
             )
         else:
+            # Cheap syntax gate before paying sandbox process overhead.
+            try:
+                compile(code, "<model_code>", "exec")
+            except SyntaxError as syn_exc:
+                fb = (
+                    f"SyntaxError before execution: {syn_exc}\n"
+                    "Rewrite as pure Python (no LaTeX). Use ```python``` fences only."
+                )
+                attempt = Attempt(
+                    index=index,
+                    llm_text=resp.text,
+                    code=code,
+                    sandbox=None,
+                    answer=None,
+                    feedback=fb,
+                    vote_round=vote_round,
+                    correction_index=correction_index,
+                    seed=seed,
+                )
+                return attempt, resp
             sandbox = run_code(
                 code,
                 timeout_seconds=self.sandbox_timeout,
