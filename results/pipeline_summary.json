@@ -35,7 +35,7 @@
     "multi_tenant_security_boundary": false
   },
   "evidence": {
-    "automated_regression_tests": 23,
+    "automated_regression_tests": 24,
     "mock_pipeline_artifact": "results/sample_eval.json",
     "real_model_benchmark_committed": true,
     "real_model_run_id": "v2_aime_2022_2024",
